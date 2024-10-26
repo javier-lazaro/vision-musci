@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Ruta de la imagen de la carta
-image_path = "proyecto/images/J_treboles.jpg"
+image_path = "static/images/J_treboles.jpg"
 
 # Leer la imagen de la carta
 img = cv2.imread(image_path)

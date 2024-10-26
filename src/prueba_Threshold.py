@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Ruta de la imagen
-image_path = "proyecto/images/baraja.jpg"
+image_path = "static/images/baraja.jpg"
 
 # Leer la imagen
 img = cv2.imread(image_path)
