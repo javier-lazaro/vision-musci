@@ -14,13 +14,13 @@ success, frame = cap.read() # Succes indica si la lectura fue exitosa.
 # Bucle para mostrar el video en tiempo real.
 while success and cv2.waitKey(1) == -1: 
     
-    cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
+    #cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
 
     # Convertir la imagen a escala de grises
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Aplicar un filtro Gaussiano para reducir el ruido
-    blurred = cv2.GaussianBlur(gray, (101, 101), 0)
+    blurred = cv2.GaussianBlur(gray, (7, 7), 0)
 
     # Aplicar un umbral binario para segmentar la imagen
     ret, thresh = cv2.threshold(blurred, 127, 255, cv2.THRESH_BINARY_INV)
@@ -63,9 +63,23 @@ while success and cv2.waitKey(1) == -1:
     
 
     # Dibujar los contornos en la imagen original
-    cv2.drawContours(frame, contours, -1, (0, 255, 0), 2) 
+    for c in contours:
+        # Encontrar el área mínima
+        rect = cv2.minAreaRect(c)
+        # calcular las coordenadas del rectángulo de área mínima
+        box = cv2.boxPoints(rect)
+        # normalizar las coordenadas a enteros
+        box = np.int32(box)
+        # dibujar contornos
+        cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
+        cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
+        #cv2.drawContours(frame, contours, -1, (0, 255, 0), 2) 
+        
 
-    cv2.imshow('VentanaCartas2', frame)  # Muestra el fotograma actual en la ventana.
+    #cv2.drawContours(frame, contours, -1, (0, 255, 0), 2) 
+    cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
+    cv2.imshow('VentanaCartas2', thresh)  # Muestra el fotograma actual en la ventana.
+    
 
     success, frame = cap.read()  # Lee el siguiente fotograma de la cámara. 
 
