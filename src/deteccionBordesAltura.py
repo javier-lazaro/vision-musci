@@ -11,6 +11,12 @@ cv2.namedWindow('VentanaCartas2')
 # Lee el primer fotograma de la cámara.
 success, frame = cap.read() # Succes indica si la lectura fue exitosa.
 
+# Contador para las imágenes
+contour_image_counter = 0
+
+# Diccionario para almacenar las ventanas de cada contorno
+contour_windows = {}
+
 # Bucle para mostrar el video en tiempo real.
 while success and cv2.waitKey(1) == -1: 
     
@@ -61,15 +67,26 @@ while success and cv2.waitKey(1) == -1:
     # TODO: Buscar una forma de determinar la forma que tiene el contorno, es decir que sea un elemento rectangular
     # TODO: Calcaulo de proporción
     
+    # Creamos una copia del frame
+    frame_copy = frame.copy()
 
-    # Dibujar los contornos en la imagen original
+    # Obtener los identificadores actuales de contornos
+    current_contour_ids = set(range(len(contours)))
+    existing_contour_ids = set(contour_windows.keys())
+
+    # Cerrar ventanas de contornos que ya no están presentes
+    for contour_id in existing_contour_ids - current_contour_ids:
+        cv2.destroyWindow(contour_windows[contour_id])
+        del contour_windows[contour_id]
+    
     for c in contours:
         # Encontrar el área mínima
         rect = cv2.minAreaRect(c)
-        # calcular las coordenadas del rectángulo de área mínima
+        # Calcular las coordenadas del rectángulo de área mínima
         box = cv2.boxPoints(rect)
-        # normalizar las coordenadas a enteros
+        # Normalizar las coordenadas a enteros
         box = np.int32(box)
+<<<<<<< HEAD
         # dibujar contornos
         cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
         cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
@@ -107,8 +124,37 @@ while success and cv2.waitKey(1) == -1:
         ###########################################################################
 
         #cv2.drawContours(frame, contours, -1, (0, 255, 0), 2) 
+=======
+        # Dibujar contornos
+        cv2.drawContours(thresh, [box], 0, (0, 0, 255), 3)
+        cv2.drawContours(frame, [box], 0, (0, 0, 255), 3)
+>>>>>>> 504fee95b770caf9e35925c5f04f830f66a2d925
         
+    """
+    # Dibujar los contornos en la imagen original
+    if len(current_contour_ids) > len(existing_contour_ids):  # Solo si hay nuevas cartas
+        for contour_id, c in enumerate(contours):
+            if contour_id in contour_windows:
+                continue  # Si la ventana ya existe, saltar
 
+            # Encontrar el área mínima
+            rect = cv2.minAreaRect(c)
+            # Calcular las coordenadas del rectángulo de área mínima
+            box = cv2.boxPoints(rect)
+            # Normalizar las coordenadas a enteros
+            box = np.int32(box)
+
+            # Crear una imagen con el contorno actual
+            x, y, w, h = cv2.boundingRect(c)
+            if w > 0 and h > 0:  # Verificar que el tamaño del contorno es válido
+                contour_image = frame[y:y+h, x:x+w]
+                
+                # Mostrar la imagen del contorno en una ventana
+                window_name = f"Contour_{contour_id}"
+                contour_windows[contour_id] = window_name
+                cv2.imshow(window_name, contour_image)
+    """
+        
     #cv2.drawContours(frame, contours, -1, (0, 255, 0), 2) 
     cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
     cv2.imshow('VentanaCartas2', thresh)  # Muestra el fotograma actual en la ventana.
@@ -120,6 +166,10 @@ while success and cv2.waitKey(1) == -1:
 if contours:
     for contour in contours[:4]:
         print(cv2.contourArea(contour))
+
+# Liberar los recursos
+cap.release()
+cv2.destroyAllWindows()
 
 # Paso 1, saber cuantas cartas hay sobre la mesa
 # Paso 2, saber el color de las distitnas cartas que hay en la mesa
