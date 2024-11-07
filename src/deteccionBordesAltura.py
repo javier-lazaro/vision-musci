@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Lectura de imagen en tiempo real
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 # Crea una ventana llamada 'VentanaCartas'.
 cv2.namedWindow('VentanaCartas')
@@ -73,6 +73,39 @@ while success and cv2.waitKey(1) == -1:
         # dibujar contornos
         cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
         cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
+
+        ###########################################################################
+
+        # Lo que hacemos en las siguientes lineas es identificar el punto del centro del área del objeto identificado
+        # Función que utilizamos
+        M = cv2.moments(c) 
+
+        # Se ha puesto este if ya que se hace una división y si el denominador fuera 0 sería infinito lo cual daría error
+        # Por lo tanto si es 0 se le asigna el valor de 1
+        if(M['m00'] == 0): M['m00'] = 1 
+        x = int(M['m10']/M['m00']) # Coordenada x del punto
+        y = int(M['m01']/M['m00']) # Coordenada y del punto
+
+        # Para dibujar el círculo del punto central conforme se mueve en la imagen utilizamos la siguiente función
+        cv2.circle(frame, # Imagen que se va a dibujar
+                    (x,y), # Coordenadas donde se va a dibujar
+                    7, # Radio del circulo
+                    (0,255,0), # Color con el que se va a dibujar, verde.
+                    -1)
+        
+        # Para indicar las coordenadas que tiene el objeto en la imagen conforme se mueve: 
+        font = cv2.FONT_HERSHEY_SIMPLEX # Con esto declaramos la fuente / tipografía del texto
+        cv2.putText(frame, # Imagen que se va a dibujar
+                    '{}, {}'.format(x,y), # Texto de las coordendas que se van a indicar, 'x' y 'y' entre las llaves. 
+                    (x+10, y), # Ubicación con respecto al punto, mas  a la derecha obviamente para que no se solape
+                    font, # Fuente que se había definido antes
+                    0.75, # Grosor del texto
+                    (0,255,0), # Color del texto
+                    1, # Tamaño del texto
+                    cv2.LINE_AA)
+
+        ###########################################################################
+
         #cv2.drawContours(frame, contours, -1, (0, 255, 0), 2) 
         
 
