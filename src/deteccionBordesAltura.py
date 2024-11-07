@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Lectura de imagen en tiempo real
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 
 # Crea una ventana llamada 'VentanaCartas'.
 cv2.namedWindow('VentanaCartas')
@@ -14,8 +14,13 @@ success, frame = cap.read() # Succes indica si la lectura fue exitosa.
 # Contador para las imágenes
 contour_image_counter = 0
 
+"""
 # Diccionario para almacenar las ventanas de cada contorno
 contour_windows = {}
+"""
+
+# Diccionario para almacenar las ventanas activas por carta
+active_windows = {}
 
 # Bucle para mostrar el video en tiempo real.
 while success and cv2.waitKey(1) == -1: 
@@ -62,7 +67,7 @@ while success and cv2.waitKey(1) == -1:
         contours = [contour for contour in contours if cv2.contourArea(contour) > media + 2 * desviacion]
 
         # Indicamos en la ventana el número de cartas que hay en la mesa
-        cv2.putText(frame, "Número de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
     # TODO: Buscar una forma de determinar la forma que tiene el contorno, es decir que sea un elemento rectangular
     # TODO: Calcaulo de proporción
@@ -70,6 +75,7 @@ while success and cv2.waitKey(1) == -1:
     # Creamos una copia del frame
     frame_copy = frame.copy()
 
+    """
     # Obtener los identificadores actuales de contornos
     current_contour_ids = set(range(len(contours)))
     existing_contour_ids = set(contour_windows.keys())
@@ -78,18 +84,41 @@ while success and cv2.waitKey(1) == -1:
     for contour_id in existing_contour_ids - current_contour_ids:
         cv2.destroyWindow(contour_windows[contour_id])
         del contour_windows[contour_id]
+    """
+
+    # Obtener la cantidad de cartas actuales y actualizar las ventanas
+    current_contour_ids = set(range(len(contours)))
+    existing_contour_ids = set(active_windows.keys())
+
+    # Cerrar ventanas de contornos que ya no están presentes
+    for contour_id in existing_contour_ids - current_contour_ids:
+        cv2.destroyWindow(active_windows[contour_id])
+        del active_windows[contour_id]
     
-    for c in contours:
+    for idx, c in enumerate(contours):
         # Encontrar el área mínima
         rect = cv2.minAreaRect(c)
         # Calcular las coordenadas del rectángulo de área mínima
         box = cv2.boxPoints(rect)
         # Normalizar las coordenadas a enteros
         box = np.int32(box)
-<<<<<<< HEAD
         # dibujar contornos
         cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
         cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
+
+        # Extraer la región del box y mostrarla en una ventana separada
+        # Extraer la región del box y mostrarla en una ventana separada
+        x, y, w, h = cv2.boundingRect(box)
+        box_region = frame[y:y+h, x:x+w]
+        if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
+            window_name = f'Carta_{idx}'  # Nombre único para cada carta detectada
+            active_windows[idx] = window_name
+            cv2.imshow(window_name, box_region)
+
+            # Posicionar la ventana en una ubicación diferente
+            window_x = 100 + (idx % 5) * 600  # Espaciado horizontal entre ventanas aumentado
+            window_y = 100 + (idx // 5) * 600  # Espaciado vertical entre filas aumentado
+            cv2.moveWindow(window_name, window_x, window_y)
 
         ###########################################################################
 
@@ -124,11 +153,6 @@ while success and cv2.waitKey(1) == -1:
         ###########################################################################
 
         #cv2.drawContours(frame, contours, -1, (0, 255, 0), 2) 
-=======
-        # Dibujar contornos
-        cv2.drawContours(thresh, [box], 0, (0, 0, 255), 3)
-        cv2.drawContours(frame, [box], 0, (0, 0, 255), 3)
->>>>>>> 504fee95b770caf9e35925c5f04f830f66a2d925
         
     """
     # Dibujar los contornos en la imagen original
