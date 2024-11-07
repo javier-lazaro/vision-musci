@@ -71,6 +71,7 @@ while success and cv2.waitKey(1) == -1:
         cv2.destroyWindow(active_windows[contour_id])
         del active_windows[contour_id]
     
+    # Dibujar y mostrar la región de interés de cada carta detectada
     for idx, c in enumerate(contours):
         # Encontrar el área mínima
         rect = cv2.minAreaRect(c)
