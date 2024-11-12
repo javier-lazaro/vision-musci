@@ -1,5 +1,6 @@
 # Detector de cartas en tiempo real #
 
+<p align="justify">
 El objetivo de este proyecto para la asignatura de Visión por Computador del MUSCI 24-25 es la creación de un sistema de detección de cartas de la baraja de naipes en tiempo real mediante el uso de métodos de visión artificial. La aplicación desarrollada utiliza la librería CV2 con la que se aplican diversas técnicas de procesamiento de imagen que extraen información característica de las cartas presentes en los fotogramas capturados mediante una cámara. La captura, procesamiento y muestra de resultados ocurre en tiempo real y busca tener la mayor robustez posible de cara a la extracción de las caracterísicas de las cartas. Esta robustez es un requisito importante del proyecto, ya que esta aplicación será reutilizada como módulo de entrada para el proyecto de la asigantura de Robótica y Automatización del MUSCI 24-25: https://github.com/motri/mucsi_robotica 
 
 ![pngegg](https://github.com/user-attachments/assets/d21d665c-ce31-4c22-b2cf-6b8f05720705)
@@ -54,3 +55,5 @@ En esta sección se detallan los distintos métodos aplicados para obtener cada 
 
 1. Gestión del reconocimiento cuando existen varias cartas posicionadas parcialmente una encima de la otra
 2. Entrenamiento de una clasificador Haar para detectar las cartas que carecen de características representativas --> JOKER
+
+</p>
