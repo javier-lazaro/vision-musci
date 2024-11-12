@@ -88,9 +88,9 @@ while success and cv2.waitKey(1) == -1:
             cv2.imshow(window_name, box_region)
 
             # Mostrar la carta detectada usando la clase ColorDetection
-            color_detection = ColorDetection(frame, box)
-            color_detection.draw_line_between_corners()  # Dibujar la línea entre las esquinas
-            color_detection.show_detected_card()
+            #color_detection = ColorDetection(frame, box)
+            #color_detection.draw_line_between_corners()  # Dibujar la línea entre las esquinas
+            #color_detection.show_detected_card()
 
             # Posicionar la ventana en una ubicación diferente
             window_x = 100 + (idx % 5) * 600  # Espaciado horizontal entre ventanas aumentado

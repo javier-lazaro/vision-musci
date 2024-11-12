@@ -33,7 +33,6 @@ class ColorDetection:
 
         cv2.line(self.frame, corner_2_offset_1, corner_4_offset_1, (0, 255, 0), 3)  # Dibujar la línea roja con grosor 3
 
-
         # Calcular la dirección del vector desde corner_2 a corner_4
         direction_vector = (corner_4_offset_1[0] - corner_2_offset_1[0], corner_4_offset_1[1] - corner_2_offset_1[1])
 
@@ -57,10 +56,11 @@ class ColorDetection:
         # Dibuja la intersección si existe
         if intersection_point:
             cv2.circle(self.frame, intersection_point, 100, (0, 0, 255), -1)  # Dibuja un círculo rojo en el punto de intersección
+        else :
+            print("Las líneas son paralelas y no se cruzan")
 
     def line_intersection(self, line1, line2):
         """Calcula el punto de intersección entre dos líneas.
-        
         line1 y line2 deben estar en formato ((x1, y1), (x2, y2)).
         """
         x1, y1, x2, y2 = line1[0][0], line1[0][1], line1[1][0], line1[1][1]
