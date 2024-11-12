@@ -103,7 +103,7 @@ while success and cv2.waitKey(1) == -1:
         # Para dibujar el círculo del punto central conforme se mueve en la imagen utilizamos la siguiente función
         cv2.circle(frame, # Imagen que se va a dibujar
                     (x,y), # Coordenadas donde se va a dibujar
-                    7, # Radio del circulo
+                    15, # Radio del circulo
                     (0,255,0), # Color con el que se va a dibujar, verde.
                     -1)
         
@@ -113,9 +113,9 @@ while success and cv2.waitKey(1) == -1:
                     '{}, {}'.format(x,y), # Texto de las coordendas que se van a indicar, 'x' y 'y' entre las llaves. 
                     (x+10, y), # Ubicación con respecto al punto, mas  a la derecha obviamente para que no se solape
                     font, # Fuente que se había definido antes
-                    0.75, # Grosor del texto
-                    (0,255,0), # Color del texto
-                    1, # Tamaño del texto
+                    1.10, # Tamaño del texto
+                    (255,0,0), # Color del texto
+                    2, # Grosor del texto (Negrita)
                     cv2.LINE_AA)
         
     cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
