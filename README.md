@@ -43,7 +43,9 @@ En esta sección se detallan los distintos métodos aplicados para obtener cada 
     - Obtención de la zona intermedia (ROI 2) --> Especialmente útil para J, Q, K y Joker
 
 <p align="center">
-    <img src="https://github.com/user-attachments/assets/fc2b9640-ade1-4de7-9a15-069e18d44a03" alt="07 of hearts" width="300"/>
+    <img src="https://github.com/user-attachments/assets/fc2b9640-ade1-4de7-9a15-069e18d44a03" alt="7 of Hearts" width="300"/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    
+    <img src="https://github.com/user-attachments/assets/685f6449-7e1a-41ea-866d-539eadf14bfb" alt="Queen of Spades" width="300"/>
 </p>
 
 2. Cálculo del color de la carta mediante la obtención del color predominante (que no sea blanco) de la ROI 1
