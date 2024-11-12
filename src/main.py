@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from colorDetection import ColorDetection
 
 # Lectura de imagen en tiempo real
 cap = cv2.VideoCapture(0)
@@ -73,6 +74,7 @@ while success and cv2.waitKey(1) == -1:
         box = cv2.boxPoints(rect)
         # Normalizar las coordenadas a enteros
         box = np.int32(box)
+        print("Box: ", box)
         # dibujar contornos
         cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
         cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
@@ -84,6 +86,11 @@ while success and cv2.waitKey(1) == -1:
             window_name = f'Carta_{idx}'  # Nombre único para cada carta detectada
             active_windows[idx] = window_name
             cv2.imshow(window_name, box_region)
+
+            # Mostrar la carta detectada usando la clase ColorDetection
+            color_detection = ColorDetection(frame, box)
+            color_detection.draw_line_between_corners()  # Dibujar la línea entre las esquinas
+            color_detection.show_detected_card()
 
             # Posicionar la ventana en una ubicación diferente
             window_x = 100 + (idx % 5) * 600  # Espaciado horizontal entre ventanas aumentado
