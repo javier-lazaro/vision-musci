@@ -1,8 +1,43 @@
 import cv2
 import numpy as np
+from colorDetection import ColorDetection
+
+# Función para obtener la línea que pasa por dos puntos
+def calculate_line(p1, p2):
+    m = (p2[1] - p1[1]) / (p2[0] - p1[0]) if p2[0] != p1[0] else None
+    if m is not None:
+        b = p1[1] - m * p1[0]
+    else:
+        b = p1[0]  # Vertical line case
+    return m, b
+
+# Función para desplazar dos puntos una distancia N de forma paralela
+def parallel_shift(p1, p2, distance):
+    direction = np.array([p2[1] - p1[1], -(p2[0] - p1[0])])  # Perpendicular vector
+    unit_direction = direction / np.linalg.norm(direction)
+    shift_vector = unit_direction * distance
+    return p1 + shift_vector, p2 + shift_vector
+
+# Función para extraer los puntos en los que intersectan dos líneas
+def find_intersection(m1, b1, m2, b2):
+    # Check if lines are parallel (same slope)
+    if m1 == m2:
+        return None
+    
+    # Calculate intersection
+    if m1 is not None and m2 is not None:
+        x = (b2 - b1) / (m1 - m2)
+        y = m1 * x + b1
+    elif m1 is None:
+        x = b1
+        y = m2 * x + b2
+    elif m2 is None:
+        x = b2
+        y = m1 * x + b1
+    return (int(np.round(x)), int(np.round(y)))
 
 # Lectura de imagen en tiempo real
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 # Crea una ventana llamada 'VentanaCartas'.
 cv2.namedWindow('VentanaCartas')
@@ -16,6 +51,8 @@ active_windows = {}
 
 # Bucle para mostrar el video en tiempo real.
 while success and cv2.waitKey(1) == -1: 
+
+    frame_with_lines = frame.copy()
 
     # Convertir la imagen a escala de grises
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -76,7 +113,7 @@ while success and cv2.waitKey(1) == -1:
         box = cv2.boxPoints(rect)
         # Normalizar las coordenadas a enteros
         box = np.int32(box)
-        print("Box: ", box)
+        #print("Box: ", box)
         # dibujar contornos
         cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
         cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
@@ -126,6 +163,88 @@ while success and cv2.waitKey(1) == -1:
                     (255,0,0), # Color del texto
                     2, # Grosor del texto (Negrita)
                     cv2.LINE_AA)
+        
+
+
+        #### Obtencion de las ROI ####
+        # Calculate the lengths of all four edges
+        line_lengths = [np.linalg.norm(box[i] - box[(i + 1) % 4]) for i in range(4)]
+        shortest_length = min(line_lengths)
+        longest_length = max(line_lengths)
+
+        # Define separate distances for long and short lines
+        distance_long = -round((shortest_length*0.2))  # Distance for long lines
+        distance_short = -round((shortest_length*0.4))   # Distance for short lines
+
+        # Initialize a copy of the frame for visualization
+        
+        parallel_edges = []
+
+        # Calculate parallel lines for each edge and classify them by length ratio
+        for i in range(4):
+            p1, p2 = box[i], box[(i + 1) % 4]
+            line_length = line_lengths[i]
+            distance = distance_long if line_length >= 1.2 * shortest_length else distance_short
+            shifted_p1, shifted_p2 = parallel_shift(p1, p2, distance)
+            parallel_edges.append((shifted_p1, shifted_p2))
+
+            # Draw original and parallel lines
+            cv2.line(frame_with_lines, tuple(p1.astype(int)), tuple(p2.astype(int)), (0, 255, 0), 2)
+            cv2.line(frame_with_lines, tuple(shifted_p1.astype(int)), tuple(shifted_p2.astype(int)), (255, 0, 0), 2)
+
+        # Find intersection points of the parallel lines with the original rectangle edges
+        # Calculate intersections of the parallel lines with the original rectangle edges
+        # Loop through each parallel edge and calculate intersections with both the rectangle and other parallel lines
+        # Loop through each parallel edge and calculate intersections with both the rectangle and other parallel lines
+        for i, (p1, p2) in enumerate(parallel_edges):
+            m1, b1 = calculate_line(p1, p2)
+            
+            # Intersect with rectangle edges
+            for j in range(4):
+                rect_p1, rect_p2 = box[j], box[(j + 1) % 4]
+                m2, b2 = calculate_line(rect_p1, rect_p2)
+                
+                # Calculate intersection point between parallel line and rectangle edge
+                intersection_point = find_intersection(m1, b1, m2, b2)
+                
+                # Skip if no intersection (parallel lines) or point is too far
+                if intersection_point is None or not (0 <= intersection_point[0] < frame_with_lines.shape[1] and 0 <= intersection_point[1] < frame_with_lines.shape[0]):
+                    continue
+
+                # Categorize and color the points based on position (e.g., top-left, bottom-right)
+                if intersection_point[0] < np.mean(box[:, 0]) and intersection_point[1] < np.mean(box[:, 1]):
+                    cv2.circle(frame_with_lines, intersection_point, 5, (0, 255, 255), -1)  # Yellow for top-left
+                elif intersection_point[0] > np.mean(box[:, 0]) and intersection_point[1] > np.mean(box[:, 1]):
+                    cv2.circle(frame_with_lines, intersection_point, 5, (0, 255, 0), -1)  # Green for bottom-right
+                else:
+                    cv2.circle(frame_with_lines, intersection_point, 5, (255, 0, 255), -1)  # Pink for other points
+
+            # Intersect with other parallel lines (wrap last with first to complete the loop)
+            p3, p4 = parallel_edges[(i + 1) % len(parallel_edges)]
+            m2, b2 = calculate_line(p3, p4)
+            
+            # Calculate intersection point between consecutive parallel lines
+            intersection_point = find_intersection(m1, b1, m2, b2)
+            
+            # Skip if no intersection (parallel lines) or point is too far
+            if intersection_point is None or not (0 <= intersection_point[0] < frame_with_lines.shape[1] and 0 <= intersection_point[1] < frame_with_lines.shape[0]):
+                continue
+            
+            # Categorize and color the points based on position (e.g., top-left, bottom-right)
+            if intersection_point[0] < np.mean(box[:, 0]) and intersection_point[1] < np.mean(box[:, 1]):
+                cv2.circle(frame_with_lines, intersection_point, 5, (0, 255, 255), -1)  # Yellow for top-left
+            elif intersection_point[0] > np.mean(box[:, 0]) and intersection_point[1] > np.mean(box[:, 1]):
+                cv2.circle(frame_with_lines, intersection_point, 5, (0, 255, 0), -1)  # Green for bottom-right
+            else:
+                cv2.circle(frame_with_lines, intersection_point, 5, (255, 0, 255), -1)  # Pink for other points
+
+    # Display the frame with lines and points
+    cv2.imshow("Frame with Lines and Points", frame_with_lines)
+
+
+        #print(p1, p2)
+
+        #frame = cv2.line(frame, p1, p2, (255, 0, 0), thickness=5)
         
     cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
     cv2.imshow('VentanaThresh', thresh)  # Muestra el fotograma actual en la ventana.
