@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from colorDetection import ColorDetection
 
 # Lectura de imagen en tiempo real
 cap = cv2.VideoCapture(0)
@@ -38,7 +37,7 @@ while success and cv2.waitKey(1) == -1:
     if contours:
         contours.pop(0)
 
-    if contours:
+    if len(contours) > 1:
         # Calculamos la media de aera de los contornos
         media = 0
         for contour in contours:
@@ -55,6 +54,9 @@ while success and cv2.waitKey(1) == -1:
         contours = [contour for contour in contours if cv2.contourArea(contour) > media + 2 * desviacion]
 
         # Indicamos en la ventana el número de cartas que hay en la mesa
+        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+    # Si solo hay un contorno, no es necesario calcular la media y la desviación estándar, es la única carta
+    else:
         cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
     # Obtener la cantidad de cartas actuales y actualizar las ventanas
