@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from colorDetection import ColorDetection
+from roiExtractor import ROIExtractor
 
 # Función para obtener la línea que pasa por dos puntos
 def calculate_line(p1, p2):
@@ -53,6 +54,9 @@ active_windows = {}
 while success and cv2.waitKey(1) == -1: 
 
     frame_with_lines = frame.copy()
+    # Creamos una mascara basandonos en el frame original
+    roi_frame = frame.copy()
+    mask = np.zeros(frame.shape[:2], dtype=np.uint8)
 
     # Convertir la imagen a escala de grises
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -164,87 +168,43 @@ while success and cv2.waitKey(1) == -1:
                     2, # Grosor del texto (Negrita)
                     cv2.LINE_AA)
         
+        ### EXTRACION DE ROIs ###
+
+        roi_extractor = ROIExtractor()
+        roi_list = roi_extractor.extract_rois(box)
+        for roi in roi_list:
+            cv2.polylines(frame_with_lines, [np.array(roi, np.int32).reshape((-1, 1, 2))], isClosed=True, color=(0, 255, 0), thickness=2)
+
+        if len(roi_list) > 0:
+            for roi in roi_list:                   
+                # Fill the polygon in the mask
+                roi_np = np.array(roi, dtype=np.int32).reshape((-1, 1, 2))
+                cv2.fillPoly(mask, [roi_np], color=255)
+                # Extract the ROI using the mask
+                roi_masked = cv2.bitwise_and(roi_frame, roi_frame, mask=mask)
+                # Optional: Crop the bounding rectangle for simpler processing (if needed)
+                #x, y, w, h = cv2.boundingRect(roi_np)
+                #cropped_roi = roi_masked[y:y+h, x:x+w]
+        else:
+            roi_masked = cv2.bitwise_and(roi_frame, roi_frame, mask=mask)
 
 
-        #### Obtencion de las ROI ####
-        # Calculate the lengths of all four edges
-        line_lengths = [np.linalg.norm(box[i] - box[(i + 1) % 4]) for i in range(4)]
-        shortest_length = min(line_lengths)
-        longest_length = max(line_lengths)
+    # Display the results
+    cv2.imshow("Mask", mask)
+    cv2.imshow("ROI", roi_masked)
+    #cv2.imshow("Cropped ROI", cropped_roi)
 
-        # Define separate distances for long and short lines
-        distance_long = -round((shortest_length*0.2))  # Distance for long lines
-        distance_short = -round((shortest_length*0.4))   # Distance for short lines
+    # Next steps: 
+    # 1. Extraer tambien la ROI central, no solo las laterales
+    # 2. Hacer un crop extra de las ROIs laterales (igual no hace falta)
+    # 3. Crear el método de busqueda de color más común (probs con un threshold) para aplicar a cada ROI extraida
+    # 4. Aplicar un filtro (Canny??) para buscar los contornos en cada ROI y sacar numero y palo
 
-        # Initialize a copy of the frame for visualization
         
-        parallel_edges = []
-
-        # Calculate parallel lines for each edge and classify them by length ratio
-        for i in range(4):
-            p1, p2 = box[i], box[(i + 1) % 4]
-            line_length = line_lengths[i]
-            distance = distance_long if line_length >= 1.2 * shortest_length else distance_short
-            shifted_p1, shifted_p2 = parallel_shift(p1, p2, distance)
-            parallel_edges.append((shifted_p1, shifted_p2))
-
-            # Draw original and parallel lines
-            cv2.line(frame_with_lines, tuple(p1.astype(int)), tuple(p2.astype(int)), (0, 255, 0), 2)
-            cv2.line(frame_with_lines, tuple(shifted_p1.astype(int)), tuple(shifted_p2.astype(int)), (255, 0, 0), 2)
-
-        # Find intersection points of the parallel lines with the original rectangle edges
-        # Calculate intersections of the parallel lines with the original rectangle edges
-        # Loop through each parallel edge and calculate intersections with both the rectangle and other parallel lines
-        # Loop through each parallel edge and calculate intersections with both the rectangle and other parallel lines
-        for i, (p1, p2) in enumerate(parallel_edges):
-            m1, b1 = calculate_line(p1, p2)
-            
-            # Intersect with rectangle edges
-            for j in range(4):
-                rect_p1, rect_p2 = box[j], box[(j + 1) % 4]
-                m2, b2 = calculate_line(rect_p1, rect_p2)
-                
-                # Calculate intersection point between parallel line and rectangle edge
-                intersection_point = find_intersection(m1, b1, m2, b2)
-                
-                # Skip if no intersection (parallel lines) or point is too far
-                if intersection_point is None or not (0 <= intersection_point[0] < frame_with_lines.shape[1] and 0 <= intersection_point[1] < frame_with_lines.shape[0]):
-                    continue
-
-                # Categorize and color the points based on position (e.g., top-left, bottom-right)
-                if intersection_point[0] < np.mean(box[:, 0]) and intersection_point[1] < np.mean(box[:, 1]):
-                    cv2.circle(frame_with_lines, intersection_point, 5, (0, 255, 255), -1)  # Yellow for top-left
-                elif intersection_point[0] > np.mean(box[:, 0]) and intersection_point[1] > np.mean(box[:, 1]):
-                    cv2.circle(frame_with_lines, intersection_point, 5, (0, 255, 0), -1)  # Green for bottom-right
-                else:
-                    cv2.circle(frame_with_lines, intersection_point, 5, (255, 0, 255), -1)  # Pink for other points
-
-            # Intersect with other parallel lines (wrap last with first to complete the loop)
-            p3, p4 = parallel_edges[(i + 1) % len(parallel_edges)]
-            m2, b2 = calculate_line(p3, p4)
-            
-            # Calculate intersection point between consecutive parallel lines
-            intersection_point = find_intersection(m1, b1, m2, b2)
-            
-            # Skip if no intersection (parallel lines) or point is too far
-            if intersection_point is None or not (0 <= intersection_point[0] < frame_with_lines.shape[1] and 0 <= intersection_point[1] < frame_with_lines.shape[0]):
-                continue
-            
-            # Categorize and color the points based on position (e.g., top-left, bottom-right)
-            if intersection_point[0] < np.mean(box[:, 0]) and intersection_point[1] < np.mean(box[:, 1]):
-                cv2.circle(frame_with_lines, intersection_point, 5, (0, 255, 255), -1)  # Yellow for top-left
-            elif intersection_point[0] > np.mean(box[:, 0]) and intersection_point[1] > np.mean(box[:, 1]):
-                cv2.circle(frame_with_lines, intersection_point, 5, (0, 255, 0), -1)  # Green for bottom-right
-            else:
-                cv2.circle(frame_with_lines, intersection_point, 5, (255, 0, 255), -1)  # Pink for other points
-
     # Display the frame with lines and points
     cv2.imshow("Frame with Lines and Points", frame_with_lines)
 
-
-        #print(p1, p2)
-
-        #frame = cv2.line(frame, p1, p2, (255, 0, 0), thickness=5)
+    
         
     cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
     cv2.imshow('VentanaThresh', thresh)  # Muestra el fotograma actual en la ventana.
