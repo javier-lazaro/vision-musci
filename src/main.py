@@ -1,8 +1,44 @@
 import cv2
 import numpy as np
+from colorDetection import ColorDetection
+from roiExtractor import ROIExtractor
+
+# Función para obtener la línea que pasa por dos puntos
+def calculate_line(p1, p2):
+    m = (p2[1] - p1[1]) / (p2[0] - p1[0]) if p2[0] != p1[0] else None
+    if m is not None:
+        b = p1[1] - m * p1[0]
+    else:
+        b = p1[0]  # Vertical line case
+    return m, b
+
+# Función para desplazar dos puntos una distancia N de forma paralela
+def parallel_shift(p1, p2, distance):
+    direction = np.array([p2[1] - p1[1], -(p2[0] - p1[0])])  # Perpendicular vector
+    unit_direction = direction / np.linalg.norm(direction)
+    shift_vector = unit_direction * distance
+    return p1 + shift_vector, p2 + shift_vector
+
+# Función para extraer los puntos en los que intersectan dos líneas
+def find_intersection(m1, b1, m2, b2):
+    # Check if lines are parallel (same slope)
+    if m1 == m2:
+        return None
+    
+    # Calculate intersection
+    if m1 is not None and m2 is not None:
+        x = (b2 - b1) / (m1 - m2)
+        y = m1 * x + b1
+    elif m1 is None:
+        x = b1
+        y = m2 * x + b2
+    elif m2 is None:
+        x = b2
+        y = m1 * x + b1
+    return (int(np.round(x)), int(np.round(y)))
 
 # Lectura de imagen en tiempo real
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 # Crea una ventana llamada 'VentanaCartas'.
 cv2.namedWindow('VentanaCartas')
@@ -16,6 +52,11 @@ active_windows = {}
 
 # Bucle para mostrar el video en tiempo real.
 while success and cv2.waitKey(1) == -1: 
+
+    frame_with_lines = frame.copy()
+    # Creamos una mascara basandonos en el frame original
+    roi_frame = frame.copy()
+    mask = np.zeros(frame.shape[:2], dtype=np.uint8)
 
     # Convertir la imagen a escala de grises
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -76,7 +117,7 @@ while success and cv2.waitKey(1) == -1:
         box = cv2.boxPoints(rect)
         # Normalizar las coordenadas a enteros
         box = np.int32(box)
-        print("Box: ", box)
+        #print("Box: ", box)
         # dibujar contornos
         cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
         cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
@@ -126,6 +167,44 @@ while success and cv2.waitKey(1) == -1:
                     (255,0,0), # Color del texto
                     2, # Grosor del texto (Negrita)
                     cv2.LINE_AA)
+        
+        ### EXTRACION DE ROIs ###
+
+        roi_extractor = ROIExtractor()
+        roi_list = roi_extractor.extract_rois(box)
+        for roi in roi_list:
+            cv2.polylines(frame_with_lines, [np.array(roi, np.int32).reshape((-1, 1, 2))], isClosed=True, color=(0, 255, 0), thickness=2)
+
+        if len(roi_list) > 0:
+            for roi in roi_list:                   
+                # Fill the polygon in the mask
+                roi_np = np.array(roi, dtype=np.int32).reshape((-1, 1, 2))
+                cv2.fillPoly(mask, [roi_np], color=255)
+                # Extract the ROI using the mask
+                roi_masked = cv2.bitwise_and(roi_frame, roi_frame, mask=mask)
+                # Optional: Crop the bounding rectangle for simpler processing (if needed)
+                #x, y, w, h = cv2.boundingRect(roi_np)
+                #cropped_roi = roi_masked[y:y+h, x:x+w]
+        else:
+            roi_masked = cv2.bitwise_and(roi_frame, roi_frame, mask=mask)
+
+
+    # Display the results
+    cv2.imshow("Mask", mask)
+    cv2.imshow("ROI", roi_masked)
+    #cv2.imshow("Cropped ROI", cropped_roi)
+
+    # Next steps: 
+    # 1. Extraer tambien la ROI central, no solo las laterales
+    # 2. Hacer un crop extra de las ROIs laterales (igual no hace falta)
+    # 3. Crear el método de busqueda de color más común (probs con un threshold) para aplicar a cada ROI extraida
+    # 4. Aplicar un filtro (Canny??) para buscar los contornos en cada ROI y sacar numero y palo
+
+        
+    # Display the frame with lines and points
+    cv2.imshow("Frame with Lines and Points", frame_with_lines)
+
+    
         
     cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
     cv2.imshow('VentanaThresh', thresh)  # Muestra el fotograma actual en la ventana.
