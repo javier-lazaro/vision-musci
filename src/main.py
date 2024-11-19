@@ -3,6 +3,11 @@ import numpy as np
 from colorDetection import ColorDetection
 from roiExtractor import ROIExtractor
 
+# Cargar los valores desde el archivo npz
+with np.load('static/npz/calibration_data.npz') as data:
+    loaded_mtx = data['camera_matrix']
+    loaded_dist = data['dist_coeffs']
+
 # Función para obtener la línea que pasa por dos puntos
 def calculate_line(p1, p2):
     m = (p2[1] - p1[1]) / (p2[0] - p1[0]) if p2[0] != p1[0] else None
@@ -53,13 +58,16 @@ active_windows = {}
 # Bucle para mostrar el video en tiempo real.
 while success and cv2.waitKey(1) == -1: 
 
-    frame_with_lines = frame.copy()
+    # Corregir la distorsión del fotograma usando los parámetros cargados
+    undistorted_frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_mtx)
+
+    frame_with_lines = undistorted_frame.copy()
     # Creamos una mascara basandonos en el frame original
-    roi_frame = frame.copy()
-    mask = np.zeros(frame.shape[:2], dtype=np.uint8)
+    roi_frame = undistorted_frame.copy()
+    mask = np.zeros(undistorted_frame.shape[:2], dtype=np.uint8)
 
     # Convertir la imagen a escala de grises
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(undistorted_frame, cv2.COLOR_BGR2GRAY)
 
     # Aplicar un filtro Gaussiano para reducir el ruido
     blurred = cv2.GaussianBlur(gray, (7, 7), 0)
@@ -95,10 +103,10 @@ while success and cv2.waitKey(1) == -1:
         contours = [contour for contour in contours if cv2.contourArea(contour) > media + 2 * desviacion]
 
         # Indicamos en la ventana el número de cartas que hay en la mesa
-        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(undistorted_frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
     # Si solo hay un contorno, no es necesario calcular la media y la desviación estándar, es la única carta
     else:
-        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(undistorted_frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
     # Obtener la cantidad de cartas actuales y actualizar las ventanas
     current_contour_ids = set(range(len(contours)))
@@ -120,11 +128,11 @@ while success and cv2.waitKey(1) == -1:
         #print("Box: ", box)
         # dibujar contornos
         cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
-        cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
+        cv2.drawContours(undistorted_frame, [box], 0, (0,0, 255), 3)
 
         # Extraer la región del box y mostrarla en una ventana separada
         x, y, w, h = cv2.boundingRect(box)
-        box_region = frame[y:y+h, x:x+w]
+        box_region = undistorted_frame[y:y+h, x:x+w]
         if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
             window_name = f'Carta_{idx}'  # Nombre único para cada carta detectada
             active_windows[idx] = window_name
@@ -151,7 +159,7 @@ while success and cv2.waitKey(1) == -1:
         y = int(M['m01']/M['m00']) # Coordenada y del punto
 
         # Para dibujar el círculo del punto central conforme se mueve en la imagen utilizamos la siguiente función
-        cv2.circle(frame, # Imagen que se va a dibujar
+        cv2.circle(undistorted_frame, # Imagen que se va a dibujar
                     (x,y), # Coordenadas donde se va a dibujar
                     15, # Radio del circulo
                     (0,255,0), # Color con el que se va a dibujar, verde.
@@ -159,7 +167,7 @@ while success and cv2.waitKey(1) == -1:
         
         # Para indicar las coordenadas que tiene el objeto en la imagen conforme se mueve: 
         font = cv2.FONT_HERSHEY_SIMPLEX # Con esto declaramos la fuente / tipografía del texto
-        cv2.putText(frame, # Imagen que se va a dibujar
+        cv2.putText(undistorted_frame, # Imagen que se va a dibujar
                     '{}, {}'.format(x,y), # Texto de las coordendas que se van a indicar, 'x' y 'y' entre las llaves. 
                     (x+10, y), # Ubicación con respecto al punto, mas  a la derecha obviamente para que no se solape
                     font, # Fuente que se había definido antes
@@ -206,7 +214,7 @@ while success and cv2.waitKey(1) == -1:
 
     
         
-    cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
+    cv2.imshow('VentanaCartas', undistorted_frame)  # Muestra el fotograma actual en la ventana.
     cv2.imshow('VentanaThresh', thresh)  # Muestra el fotograma actual en la ventana.
 
     success, frame = cap.read()  # Lee el siguiente fotograma de la cámara. 
