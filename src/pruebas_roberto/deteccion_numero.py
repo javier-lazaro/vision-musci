@@ -3,6 +3,7 @@ import numpy as np
 from colorDetection import ColorDetection
 from roiExtractor import ROIExtractor
 
+
 # Cargar los valores desde el archivo npz
 with np.load('./static/npz/calibration_data.npz') as data:
     loaded_mtx = data['camera_matrix']
@@ -61,13 +62,13 @@ while success and cv2.waitKey(1) == -1:
     # Corregir la distorsión del fotograma usando los parámetros cargados
     undistorted_frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_mtx)
 
-    frame_with_lines = undistorted_frame.copy()
+    frame_with_lines = frame.copy()
     # Creamos una mascara basandonos en el frame original
-    roi_frame = undistorted_frame.copy()
-    mask = np.zeros(undistorted_frame.shape[:2], dtype=np.uint8)
+    roi_frame = frame.copy()
+    mask = np.zeros(frame.shape[:2], dtype=np.uint8)
 
     # Convertir la imagen a escala de grises
-    gray = cv2.cvtColor(undistorted_frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Aplicar un filtro Gaussiano para reducir el ruido
     blurred = cv2.GaussianBlur(gray, (7, 7), 0)
@@ -103,10 +104,10 @@ while success and cv2.waitKey(1) == -1:
         contours = [contour for contour in contours if cv2.contourArea(contour) > media + 2 * desviacion]
 
         # Indicamos en la ventana el número de cartas que hay en la mesa
-        cv2.putText(undistorted_frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
     # Si solo hay un contorno, no es necesario calcular la media y la desviación estándar, es la única carta
     else:
-        cv2.putText(undistorted_frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
     # Obtener la cantidad de cartas actuales y actualizar las ventanas
     current_contour_ids = set(range(len(contours)))
@@ -128,15 +129,15 @@ while success and cv2.waitKey(1) == -1:
         #print("Box: ", box)
         # dibujar contornos
         cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
-        cv2.drawContours(undistorted_frame, [box], 0, (0,0, 255), 3)
+        cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
 
         # Extraer la región del box y mostrarla en una ventana separada
         x, y, w, h = cv2.boundingRect(box)
-        box_region = undistorted_frame[y:y+h, x:x+w]
+        box_region = frame[y:y+h, x:x+w]
         if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
             window_name = f'Carta_{idx}'  # Nombre único para cada carta detectada
             active_windows[idx] = window_name
-            cv2.imshow(window_name, box_region)
+            #cv2.imshow(window_name, box_region)
 
             # Mostrar la carta detectada usando la clase ColorDetection
             #color_detection = ColorDetection(frame, box)
@@ -147,6 +148,64 @@ while success and cv2.waitKey(1) == -1:
             window_x = 100 + (idx % 5) * 600  # Espaciado horizontal entre ventanas aumentado
             window_y = 100 + (idx // 5) * 600  # Espaciado vertical entre filas aumentado
             cv2.moveWindow(window_name, window_x, window_y)
+
+############################################################################################
+# Extraer la región del box y mostrarla en una ventana separada
+        # Extraer la región del box y mostrarla en una ventana separada
+        x, y, w, h = cv2.boundingRect(box)
+        box_region = thresh[y:y + h, x:x + w]
+
+        if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
+            # Aplicar una operación de cerrado morfológico para asegurar que los contornos estén bien cerrados
+            kernel = np.ones((5, 5), np.uint8)
+            closed = cv2.morphologyEx(box_region, cv2.MORPH_CLOSE, kernel)
+
+            # Encontrar los contornos en la imagen de la región del box
+            inner_contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Calcular el centro de la región del box y definir un rectángulo
+            height, width = box_region.shape[:2]
+            rect_width = int(width * 0.70)  # Ajustar el tamaño del rectángulo al 75% del ancho
+            rect_height = int(height * 0.85)  # Ajustar el tamaño del rectángulo al 75% de la altura
+
+            # Definir el rectángulo central (top-left y bottom-right)
+            top_left = (width // 2 - rect_width // 2, height // 2 - rect_height // 2)
+            bottom_right = (width // 2 + rect_width // 2, height // 2 + rect_height // 2)
+
+            # Dibujar el rectángulo en la misma imagen donde se dibujarán los contornos
+            #cv2.rectangle(frame, top_left, bottom_right, (0, 255, 0), 2)
+            cv2.rectangle(frame, (x + top_left[0], y + top_left[1]), (x + bottom_right[0], y + bottom_right[1]), (0, 255, 0), 2)
+
+            # Contar cuántos contornos están completamente dentro del rectángulo
+            count = 0
+            for contour in inner_contours:
+                inside_rectangle = True
+                for point in contour:
+                    if not (top_left[0] <= point[0][0] <= bottom_right[0] and top_left[1] <= point[0][1] <= bottom_right[1]):
+                        inside_rectangle = False
+                        break
+                if inside_rectangle:
+                    count += 1
+                    contour[:, 0, 0] += x  # Desplazamiento en X
+                    contour[:, 0, 1] += y  # Desplazamiento en Y
+                    # Dibujar los contornos que están dentro del rectángulo
+                    cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
+            
+            # Dibujar texto en la parte superior del rectángulo
+            text = f'Numero: {count}'
+            font_scale = 1
+            font_thickness = 2
+            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0]
+            text_width, text_height = text_size
+
+            # Coordenadas para el texto y el punto verde
+            text_x = x + top_left[0] + (rect_width // 2) - (text_width // 2)
+            text_y = y + top_left[1] - 10  # Espacio por encima del rectángulo
+
+            # Dibujar el texto
+            cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 0, 0), font_thickness, cv2.LINE_AA)
+
+################################################################################################################
 
         # Lo que hacemos en las siguientes lineas es identificar el punto del centro del área del objeto identificado
         # Función que utilizamos
@@ -159,7 +218,7 @@ while success and cv2.waitKey(1) == -1:
         y = int(M['m01']/M['m00']) # Coordenada y del punto
 
         # Para dibujar el círculo del punto central conforme se mueve en la imagen utilizamos la siguiente función
-        cv2.circle(undistorted_frame, # Imagen que se va a dibujar
+        cv2.circle(frame, # Imagen que se va a dibujar
                     (x,y), # Coordenadas donde se va a dibujar
                     15, # Radio del circulo
                     (0,255,0), # Color con el que se va a dibujar, verde.
@@ -167,7 +226,7 @@ while success and cv2.waitKey(1) == -1:
         
         # Para indicar las coordenadas que tiene el objeto en la imagen conforme se mueve: 
         font = cv2.FONT_HERSHEY_SIMPLEX # Con esto declaramos la fuente / tipografía del texto
-        cv2.putText(undistorted_frame, # Imagen que se va a dibujar
+        cv2.putText(frame, # Imagen que se va a dibujar
                     '{}, {}'.format(x,y), # Texto de las coordendas que se van a indicar, 'x' y 'y' entre las llaves. 
                     (x+10, y), # Ubicación con respecto al punto, mas  a la derecha obviamente para que no se solape
                     font, # Fuente que se había definido antes
@@ -198,8 +257,8 @@ while success and cv2.waitKey(1) == -1:
 
 
     # Display the results
-    cv2.imshow("Mask", mask)
-    cv2.imshow("ROI", roi_masked)
+    #cv2.imshow("Mask", mask)
+    #cv2.imshow("ROI", roi_masked)
     #cv2.imshow("Cropped ROI", cropped_roi)
 
     # Next steps: 
@@ -210,11 +269,11 @@ while success and cv2.waitKey(1) == -1:
 
         
     # Display the frame with lines and points
-    cv2.imshow("Frame with Lines and Points", frame_with_lines)
+    #cv2.imshow("Frame with Lines and Points", frame_with_lines)
 
     
         
-    cv2.imshow('VentanaCartas', undistorted_frame)  # Muestra el fotograma actual en la ventana.
+    cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
     cv2.imshow('VentanaThresh', thresh)  # Muestra el fotograma actual en la ventana.
 
     success, frame = cap.read()  # Lee el siguiente fotograma de la cámara. 
