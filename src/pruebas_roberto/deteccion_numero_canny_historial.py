@@ -49,6 +49,7 @@ cap = cv2.VideoCapture(0)
 # Crea una ventana llamada 'VentanaCartas'.
 cv2.namedWindow('VentanaCartas')
 cv2.namedWindow('VentanaThresh')
+cv2.namedWindow('VentanaCanny')
 
 # Lee el primer fotograma de la cámara.
 success, frame = cap.read() # Succes indica si la lectura fue exitosa.
@@ -155,10 +156,32 @@ while success and cv2.waitKey(1) == -1:
         x, y, w, h = cv2.boundingRect(box)
         box_region = thresh[y:y + h, x:x + w]
 
+        # Historial para estabilizar el número de contornos
+        contour_history = []  # Lista para almacenar los números detectados
+        history_length = 5  # Longitud del historial para estabilizar
+
         if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
-            # Aplicar una operación de cerrado morfológico para asegurar que los contornos estén bien cerrados
+            
+            # Verificar el número de canales de la imagen
+            if len(box_region.shape) == 3 and box_region.shape[2] == 3:
+                # Convertir la imagen a escala de grises si tiene 3 canales (BGR)
+                box_gray = cv2.cvtColor(box_region, cv2.COLOR_BGR2GRAY)
+            else:
+                # Si la imagen ya está en escala de grises, no es necesario convertirla
+                box_gray = box_region
+
+            # Aplicar un filtro Gaussiano para suavizar la imagen
+            box_blurred = cv2.GaussianBlur(box_gray, (5, 5), 0)
+
+            # Aplicar el detector de bordes Canny
+            canny_edges = cv2.Canny(box_blurred, threshold1=50, threshold2=150)
+
+            # Aplicar una operación de cerrado morfológico para asegurar que los bordes estén bien cerrados
             kernel = np.ones((5, 5), np.uint8)
-            closed = cv2.morphologyEx(box_region, cv2.MORPH_CLOSE, kernel)
+            closed = cv2.morphologyEx(canny_edges, cv2.MORPH_CLOSE, kernel)
+
+            # Mostramos la ventana Canny
+            cv2.imshow('VentanaCanny', closed)
 
             # Encontrar los contornos en la imagen de la región del box
             inner_contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -191,8 +214,16 @@ while success and cv2.waitKey(1) == -1:
                     # Dibujar los contornos que están dentro del rectángulo
                     cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
             
-            # Dibujar texto en la parte superior del rectángulo
-            text = f'Numero: {count}'
+            # Actualizar el historial de contornos
+            contour_history.append(count)
+            if len(contour_history) > history_length:
+                contour_history.pop(0)  # Eliminar el valor más antiguo si excede el tamaño del historial
+
+            # Calcular un valor estable (por ejemplo, la mediana del historial)
+            stable_count = int(np.median(contour_history))
+
+            # Dibujar texto con el valor estable
+            text = f'Numero: {stable_count}'
             font_scale = 1
             font_thickness = 2
             text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0]
