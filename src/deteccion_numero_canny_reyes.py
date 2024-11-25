@@ -3,6 +3,54 @@ import numpy as np
 from colorDetection import ColorDetection
 from roiExtractor import ROIExtractor
 
+# Función para identificar figuras específicas basadas en contornos de referencia
+def detect_figure(box_region, reference_Q, reference_J, reference_K):
+    if box_region.size > 0:
+        # Convertir a escala de grises si es necesario
+        if len(box_region.shape) == 3 and box_region.shape[2] == 3:
+            box_gray = cv2.cvtColor(box_region, cv2.COLOR_BGR2GRAY)
+        else:
+            box_gray = box_region
+
+        # Extraer la esquina superior izquierda (ROI)
+        h, w = box_gray.shape
+        roi_corner = box_gray[0:h // 4, 0:w // 4]
+
+        # Suavizar y detectar bordes en el ROI
+        blurred = cv2.GaussianBlur(roi_corner, (5, 5), 0)
+        edges = cv2.Canny(blurred, 50, 150)
+
+        # Encontrar contornos en el ROI
+        roi_contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        detected_shape = "Desconocido"
+        for roi_contour in roi_contours:
+            similarity_to_Q = cv2.matchShapes(roi_contour, reference_Q, cv2.CONTOURS_MATCH_I1, 0)
+            similarity_to_J = cv2.matchShapes(roi_contour, reference_J, cv2.CONTOURS_MATCH_I1, 0)
+            similarity_to_K = cv2.matchShapes(roi_contour, reference_K, cv2.CONTOURS_MATCH_I1, 0)
+
+            # Determinar la carta más similar (ajustar umbral si es necesario)
+            if similarity_to_Q < 0.2:
+                detected_shape = "Q"
+                break
+            elif similarity_to_J < 0.2:
+                detected_shape = "J"
+                break
+            elif similarity_to_K < 0.2:
+                detected_shape = "K"
+                break
+
+        return detected_shape
+    return "Desconocido"
+
+
+# Incorporar la lógica de detección de figuras en tu código principal
+# Cargar los contornos de referencia
+data = np.load("contornos_referencias.npz")
+reference_Q = data["Q"]
+reference_J = data["J"]
+reference_K = data["K"]
+
 
 # Cargar los valores desde el archivo npz
 with np.load('./static/npz/calibration_data.npz') as data:

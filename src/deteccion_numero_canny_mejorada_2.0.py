@@ -43,6 +43,70 @@ def find_intersection(m1, b1, m2, b2):
         y = m1 * x + b1
     return (int(np.round(x)), int(np.round(y)))
 
+##############################################################################################
+
+# Función para identificar figuras específicas basadas en contornos de referencia
+def detect_figure(box_region, reference_Q, reference_J, reference_K):
+    if box_region.size > 0:
+        # Convertir a escala de grises si es necesario
+        if len(box_region.shape) == 3 and box_region.shape[2] == 3:
+            box_gray = cv2.cvtColor(box_region, cv2.COLOR_BGR2GRAY)
+        else:
+            box_gray = box_region
+
+        # Extraer la esquina superior izquierda (ROI)
+        h, w = box_gray.shape
+        roi_corner = box_region[0:h // 6, 0:w // 6]
+
+        # Suavizar y detectar bordes en el ROI
+        blurred = cv2.GaussianBlur(roi_corner, (5, 5), 0)
+        edges = cv2.Canny(blurred, 50, 150)
+
+        # Encontrar contornos en el ROI
+        roi_contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Escoger el contorno más grande como referencia
+        if roi_contours:
+            roi_contours = sorted(roi_contours, key=cv2.contourArea, reverse=True)
+            roi_contours = roi_contours[:1]
+        
+        # Dibujar la región de interés en la imagen principal
+        cv2.rectangle(box_region, (0, 0), (w // 6, h // 6), (0, 255, 0), 2)
+        
+        # Dibujar el contorno en la imagen principal
+        cv2.drawContours(box_region, roi_contours, -1, (0, 0, 255), 3)
+
+        detected_shape = "Desconocido"
+        for roi_contour in roi_contours:
+            similarity_to_Q = cv2.matchShapes(roi_contour, reference_Q, cv2.CONTOURS_MATCH_I1, 0)
+            similarity_to_J = cv2.matchShapes(roi_contour, reference_J, cv2.CONTOURS_MATCH_I1, 0)
+            similarity_to_K = cv2.matchShapes(roi_contour, reference_K, cv2.CONTOURS_MATCH_I1, 0)
+
+            # Determinar la carta más similar (ajustar umbral si es necesario)
+            if similarity_to_Q < 0.2:
+                detected_shape = "Q"
+                break
+            elif similarity_to_J < 0.2:
+                detected_shape = "J"
+                break
+            elif similarity_to_K < 0.2:
+                detected_shape = "K"
+                break
+
+        return detected_shape
+    return "Desconocido"
+
+
+# Incorporar la lógica de detección de figuras en tu código principal
+# Cargar los contornos de referencia
+data = np.load("contornos_referencias.npz")
+reference_Q = data["Q"]
+reference_J = data["J"]
+reference_K = data["K"]
+
+##############################################################################################
+
+
 # Lectura de imagen en tiempo real
 cap = cv2.VideoCapture(0)
 
@@ -200,60 +264,6 @@ while success and cv2.waitKey(1) == -1:
             #cv2.rectangle(frame, top_left, bottom_right, (0, 255, 0), 2)
             cv2.rectangle(frame, (x + top_left[0], y + top_left[1]), (x + bottom_right[0], y + bottom_right[1]), (0, 255, 0), 2)
 
-            """
-            # Contar cuántos contornos están completamente dentro del rectángulo
-            count = 0
-            for contour in inner_contours:
-                inside_rectangle = True
-                for point in contour:
-                    if not (top_left[0] <= point[0][0] <= bottom_right[0] and top_left[1] <= point[0][1] <= bottom_right[1]):
-                        inside_rectangle = False
-                        break
-                if inside_rectangle:
-                    count += 1
-                    contour[:, 0, 0] += x  # Desplazamiento en X
-                    contour[:, 0, 1] += y  # Desplazamiento en Y
-                    # Dibujar los contornos que están dentro del rectángulo
-                    cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
-            
-
-            # Calcular las áreas de los contornos detectados
-            areas = [(cv2.contourArea(contour), contour) for contour in inner_contours]
-
-            # Ordenar los contornos por área, de mayor a menor
-            areas = sorted(areas, key=lambda x: x[0], reverse=True)
-
-            # Detectar un salto significativo en las áreas
-            significant_contours = []
-            if len(areas) > 0:
-                prev_area = areas[0][0]
-                significant_contours.append(areas[0])  # Agregar siempre el contorno más grande
-                for i in range(1, len(areas)):
-                    current_area = areas[i][0]
-                    if prev_area / current_area > 2:  # Ajustar el factor según lo que se considere un "salto significativo"
-                        cv2.drawContours(frame, [areas[i][1]], -1, (0, 255, 0), 3)  # Dibuja el contorno en verde
-                        break  # Terminar cuando se detecta un cambio brusco
-                    significant_contours.append(areas[i])
-                    prev_area = current_area
-
-            # Filtrar los contornos significativos
-            filtered_contours = [contour for _, contour in significant_contours]
-
-            # Contar cuántos contornos están completamente dentro del rectángulo
-            count = 0
-            for contour in filtered_contours:
-                inside_rectangle = True
-                for point in contour:
-                    if not (top_left[0] <= point[0][0] <= bottom_right[0] and top_left[1] <= point[0][1] <= bottom_right[1]):
-                        inside_rectangle = False
-                        break
-                if inside_rectangle:
-                    count += 1
-                    contour[:, 0, 0] += x  # Desplazamiento en X
-                    contour[:, 0, 1] += y  # Desplazamiento en Y
-                    # Dibujar los contornos que están dentro del rectángulo
-                    cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
-            """
             # Filtrar contornos que están completamente dentro del rectángulo
             contours_in_rectangle = []
             for contour in inner_contours:
@@ -292,14 +302,73 @@ while success and cv2.waitKey(1) == -1:
             # Contar cuántos contornos significativos hay
             count = len(filtered_contours)
 
-            # Dibujar los contornos filtrados
-            for contour in filtered_contours:
-                contour[:, 0, 0] += x  # Desplazamiento en X
-                contour[:, 0, 1] += y  # Desplazamiento en Y
-                cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
+            # Determinar si la carta es un número o una figura
+            if count > 0:  # Umbral ajustable para distinguir entre números y figuras
+                # Procesar como figura
+                if box_region.size > 0:
+                    # Convertir a escala de grises si es necesario
+                    if len(box_region.shape) == 3 and box_region.shape[2] == 3:
+                        box_gray = cv2.cvtColor(box_region, cv2.COLOR_BGR2GRAY)
+                    else:
+                        box_gray = box_region
 
-            # Dibujar texto en la parte superior del rectángulo
-            text = f'Numero: {count}'
+                    # Extraer la esquina superior izquierda (ROI)
+                    h, w = box_gray.shape
+                    roi_corner = box_region[0:h // 6, 0:w // 6]
+
+                    # Suavizar y detectar bordes en el ROI
+                    blurred = cv2.GaussianBlur(roi_corner, (5, 5), 0)
+                    edges = cv2.Canny(blurred, 50, 150)
+
+                    # Encontrar contornos en el ROI
+                    roi_contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                    # Escoger el contorno más grande como referencia
+                    if roi_contours:
+                        roi_contours = sorted(roi_contours, key=cv2.contourArea, reverse=True)
+                        roi_contours = roi_contours[:1]
+                    
+                    # Verificar que hay contornos en roi_contours
+                    if len(roi_contours) > 0:
+                        # Obtenemos la posición del contorno en el ROI
+                        x, y, w, h = cv2.boundingRect(roi_contours[0])
+
+                        # Ajustar las coordenadas del contorno para la posición real en la imagen principal
+                        roi_contour_adjusted = roi_contours[0] + np.array([x, y])
+
+                        # Dibujamos el contorno ajustado en la imagen principal
+                        cv2.drawContours(frame, [roi_contour_adjusted], -1, (0, 0, 255), 3)
+
+                        # Opcional: Dibujar un rectángulo alrededor del contorno en la imagen principal
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+                    detected_shape = "Desconocido"
+                    for roi_contour in roi_contours:
+                        similarity_to_Q = cv2.matchShapes(roi_contour, reference_Q, cv2.CONTOURS_MATCH_I1, 0)
+                        similarity_to_J = cv2.matchShapes(roi_contour, reference_J, cv2.CONTOURS_MATCH_I1, 0)
+                        similarity_to_K = cv2.matchShapes(roi_contour, reference_K, cv2.CONTOURS_MATCH_I1, 0)
+
+                        # Determinar la carta más similar (ajustar umbral si es necesario)
+                        if similarity_to_Q < 0.2:
+                            detected_shape = "Q"
+                            break
+                        elif similarity_to_J < 0.2:
+                            detected_shape = "J"
+                            break
+                        elif similarity_to_K < 0.2:
+                            detected_shape = "K"
+                            break
+                text = f'Figura: {detected_shape}'  # Cambiar el texto para mostrar la figura
+            else:
+                # Dibujar los contornos filtrados
+                for contour in filtered_contours:
+                    contour[:, 0, 0] += x  # Desplazamiento en X
+                    contour[:, 0, 1] += y  # Desplazamiento en Y
+                    cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
+
+                # Dibujar texto en la parte superior del rectángulo
+                text = f'Numero: {count}'
+            
             font_scale = 1
             font_thickness = 2
             text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0]
