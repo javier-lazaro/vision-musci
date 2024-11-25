@@ -200,6 +200,7 @@ while success and cv2.waitKey(1) == -1:
             #cv2.rectangle(frame, top_left, bottom_right, (0, 255, 0), 2)
             cv2.rectangle(frame, (x + top_left[0], y + top_left[1]), (x + bottom_right[0], y + bottom_right[1]), (0, 255, 0), 2)
 
+            """
             # Contar cuántos contornos están completamente dentro del rectángulo
             count = 0
             for contour in inner_contours:
@@ -215,6 +216,88 @@ while success and cv2.waitKey(1) == -1:
                     # Dibujar los contornos que están dentro del rectángulo
                     cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
             
+
+            # Calcular las áreas de los contornos detectados
+            areas = [(cv2.contourArea(contour), contour) for contour in inner_contours]
+
+            # Ordenar los contornos por área, de mayor a menor
+            areas = sorted(areas, key=lambda x: x[0], reverse=True)
+
+            # Detectar un salto significativo en las áreas
+            significant_contours = []
+            if len(areas) > 0:
+                prev_area = areas[0][0]
+                significant_contours.append(areas[0])  # Agregar siempre el contorno más grande
+                for i in range(1, len(areas)):
+                    current_area = areas[i][0]
+                    if prev_area / current_area > 2:  # Ajustar el factor según lo que se considere un "salto significativo"
+                        cv2.drawContours(frame, [areas[i][1]], -1, (0, 255, 0), 3)  # Dibuja el contorno en verde
+                        break  # Terminar cuando se detecta un cambio brusco
+                    significant_contours.append(areas[i])
+                    prev_area = current_area
+
+            # Filtrar los contornos significativos
+            filtered_contours = [contour for _, contour in significant_contours]
+
+            # Contar cuántos contornos están completamente dentro del rectángulo
+            count = 0
+            for contour in filtered_contours:
+                inside_rectangle = True
+                for point in contour:
+                    if not (top_left[0] <= point[0][0] <= bottom_right[0] and top_left[1] <= point[0][1] <= bottom_right[1]):
+                        inside_rectangle = False
+                        break
+                if inside_rectangle:
+                    count += 1
+                    contour[:, 0, 0] += x  # Desplazamiento en X
+                    contour[:, 0, 1] += y  # Desplazamiento en Y
+                    # Dibujar los contornos que están dentro del rectángulo
+                    cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
+            """
+            # Filtrar contornos que están completamente dentro del rectángulo
+            contours_in_rectangle = []
+            for contour in inner_contours:
+                inside_rectangle = True
+                for point in contour:
+                    if not (top_left[0] <= point[0][0] <= bottom_right[0] and top_left[1] <= point[0][1] <= bottom_right[1]):
+                        inside_rectangle = False
+                        break
+                if inside_rectangle:
+                    contours_in_rectangle.append(contour)
+
+            # Calcular las áreas de los contornos filtrados
+            areas = [(cv2.contourArea(contour), contour) for contour in contours_in_rectangle]
+
+            # Ordenar los contornos por área, de mayor a menor
+            areas = sorted(areas, key=lambda x: x[0], reverse=True)
+
+            # Detectar un salto significativo en las áreas
+            significant_contours = []
+            if len(areas) > 0:
+                prev_area = areas[0][0]
+                significant_contours.append(areas[0])  # Agregar siempre el contorno más grande
+                for i in range(1, len(areas)):
+                    current_area = areas[i][0]
+                    if current_area == 0:  # Evitar división por cero
+                        continue  # Ignorar este contorno y pasar al siguiente
+                    if prev_area / current_area > 2:  # Ajustar el factor según lo que se considere un "salto significativo"
+                        cv2.drawContours(frame, [areas[i][1]], -1, (0, 255, 0), 3)  # Dibuja el contorno en verde
+                        break  # Terminar cuando se detecta un cambio brusco
+                    significant_contours.append(areas[i])
+                    prev_area = current_area
+
+            # Filtrar los contornos significativos
+            filtered_contours = [contour for _, contour in significant_contours]
+
+            # Contar cuántos contornos significativos hay
+            count = len(filtered_contours)
+
+            # Dibujar los contornos filtrados
+            for contour in filtered_contours:
+                contour[:, 0, 0] += x  # Desplazamiento en X
+                contour[:, 0, 1] += y  # Desplazamiento en Y
+                cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
+
             # Dibujar texto en la parte superior del rectángulo
             text = f'Numero: {count}'
             font_scale = 1

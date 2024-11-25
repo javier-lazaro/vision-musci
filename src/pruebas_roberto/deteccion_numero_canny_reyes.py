@@ -152,89 +152,92 @@ while success and cv2.waitKey(1) == -1:
 
 ############################################################################################
 # Extraer la región del box y mostrarla en una ventana separada
-        # Extraer la región del box y mostrarla en una ventana separada
-        x, y, w, h = cv2.boundingRect(box)
-        box_region = thresh[y:y + h, x:x + w]
+############################################################################################
+# Extraer la región del box y mostrarla en una ventana separada
 
-        # Historial para estabilizar el número de contornos
-        contour_history = []  # Lista para almacenar los números detectados
-        history_length = 5  # Longitud del historial para estabilizar
+            # Cargar los contornos guardados
+            data = np.load("contornos_referencias.npz")
+            reference_Q = data["Q"]
+            reference_J = data["J"]
+            reference_K = data["K"]
 
-        if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
-            
-            # Verificar el número de canales de la imagen
-            if len(box_region.shape) == 3 and box_region.shape[2] == 3:
-                # Convertir la imagen a escala de grises si tiene 3 canales (BGR)
-                box_gray = cv2.cvtColor(box_region, cv2.COLOR_BGR2GRAY)
-            else:
-                # Si la imagen ya está en escala de grises, no es necesario convertirla
-                box_gray = box_region
+            x, y, w, h = cv2.boundingRect(box)
+            box_region = frame[y:y + h, x:x + w]
 
-            # Aplicar un filtro Gaussiano para suavizar la imagen
-            box_blurred = cv2.GaussianBlur(box_gray, (5, 5), 0)
+            if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
+                
+                # Verificar el número de canales de la imagen
+                if len(box_region.shape) == 3 and box_region.shape[2] == 3:
+                    # Convertir la imagen a escala de grises si tiene 3 canales (BGR)
+                    box_gray = cv2.cvtColor(box_region, cv2.COLOR_BGR2GRAY)
+                else:
+                    # Si la imagen ya está en escala de grises, no es necesario convertirla
+                    box_gray = box_region
 
-            # Aplicar el detector de bordes Canny
-            canny_edges = cv2.Canny(box_blurred, threshold1=50, threshold2=150)
+                # Aplicar un filtro Gaussiano para suavizar la imagen
+                #box_blurred = cv2.GaussianBlur(box_gray, (5, 5), 0)
 
-            # Aplicar una operación de cerrado morfológico para asegurar que los bordes estén bien cerrados
-            kernel = np.ones((5, 5), np.uint8)
-            closed = cv2.morphologyEx(canny_edges, cv2.MORPH_CLOSE, kernel)
+                # Calcula valores dinámicos para los thresholds de Canny
+                mean_intensity = np.mean(box_gray)
+                low_threshold = max(30, int(mean_intensity * 0.5))
+                high_threshold = min(150, int(mean_intensity * 1.5))
 
-            # Mostramos la ventana Canny
-            cv2.imshow('VentanaCanny', closed)
+                # Aplicar el detector de bordes Canny
+                canny_edges = cv2.Canny(box_gray, threshold1=50, threshold2=150)
 
-            # Encontrar los contornos en la imagen de la región del box
-            inner_contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                # Aplicar una operación de cerrado morfológico para asegurar que los bordes estén bien cerrados
+                kernel = np.ones((5, 5), np.uint8)
+                closed = cv2.morphologyEx(canny_edges, cv2.MORPH_CLOSE, kernel)
 
-            # Calcular el centro de la región del box y definir un rectángulo
-            height, width = box_region.shape[:2]
-            rect_width = int(width * 0.70)  # Ajustar el tamaño del rectángulo al 75% del ancho
-            rect_height = int(height * 0.85)  # Ajustar el tamaño del rectángulo al 75% de la altura
+                # Encontrar los contornos en los bordes cerrados
+                inner_contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            # Definir el rectángulo central (top-left y bottom-right)
-            top_left = (width // 2 - rect_width // 2, height // 2 - rect_height // 2)
-            bottom_right = (width // 2 + rect_width // 2, height // 2 + rect_height // 2)
+                # Dibujar los bordes cerrados en la región de interés
+                cv2.drawContours(box_region, inner_contours, -1, (0, 255, 0), 2)
 
-            # Dibujar el rectángulo en la misma imagen donde se dibujarán los contornos
-            #cv2.rectangle(frame, top_left, bottom_right, (0, 255, 0), 2)
-            cv2.rectangle(frame, (x + top_left[0], y + top_left[1]), (x + bottom_right[0], y + bottom_right[1]), (0, 255, 0), 2)
+                # Extraer la esquina superior izquierda para identificar la figura (ROI)
+                roi_corner = box_gray[0:h // 4, 0:w // 4]  # Proporción ajustada al diseño de la carta
 
-            # Contar cuántos contornos están completamente dentro del rectángulo
-            count = 0
-            for contour in inner_contours:
-                inside_rectangle = True
-                for point in contour:
-                    if not (top_left[0] <= point[0][0] <= bottom_right[0] and top_left[1] <= point[0][1] <= bottom_right[1]):
-                        inside_rectangle = False
-                        break
-                if inside_rectangle:
-                    count += 1
-                    contour[:, 0, 0] += x  # Desplazamiento en X
-                    contour[:, 0, 1] += y  # Desplazamiento en Y
-                    # Dibujar los contornos que están dentro del rectángulo
-                    cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
-            
-            # Actualizar el historial de contornos
-            contour_history.append(count)
-            if len(contour_history) > history_length:
-                contour_history.pop(0)  # Eliminar el valor más antiguo si excede el tamaño del historial
+                # Dibujar un rectángulo sobre el ROI en la región completa
+                cv2.rectangle(box_region, (0, 0), (w // 4, h // 4), (255, 0, 0), 2)
 
-            # Calcular un valor estable (por ejemplo, la mediana del historial)
-            stable_count = int(np.median(contour_history))
+                # Encontrar los contornos en el ROI
+                roi_contours, _ = cv2.findContours(roi_corner, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            # Dibujar texto con el valor estable
-            text = f'Numero: {stable_count}'
-            font_scale = 1
-            font_thickness = 2
-            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0]
-            text_width, text_height = text_size
+                # Mostrar la ROI extraída en una ventana separada
+                cv2.imshow("VentanaCanny", roi_corner)
 
-            # Coordenadas para el texto y el punto verde
-            text_x = x + top_left[0] + (rect_width // 2) - (text_width // 2)
-            text_y = y + top_left[1] - 10  # Espacio por encima del rectángulo
+                # Dibujar los contornos encontrados en el ROI
+                cv2.drawContours(roi_corner, roi_contours, -1, (255, 0, 0), 2)
 
-            # Dibujar el texto
-            cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 0, 0), font_thickness, cv2.LINE_AA)
+                # Detectar figuras específicas basadas en formas
+                detected_shape = None
+                for roi_contour in roi_contours:
+                    # Comparar con formas predefinidas usando matchShapes
+                    similarity_to_Q = cv2.matchShapes(contour, reference_Q, cv2.CONTOURS_MATCH_I1, 0)
+                    similarity_to_J = cv2.matchShapes(contour, reference_J, cv2.CONTOURS_MATCH_I1, 0)
+                    similarity_to_K = cv2.matchShapes(contour, reference_K, cv2.CONTOURS_MATCH_I1, 0)
+
+                    # Ajustar los thresholds de similitud según tus pruebas
+                    if similarity_to_Q < 0.2:
+                        detected_shape = "Q"
+                    elif similarity_to_J < 0.2:
+                        detected_shape = "J"
+                    elif similarity_to_K < 0.2:
+                        detected_shape = "K"
+
+                # Mostrar la figura detectada
+                if detected_shape:
+                    cv2.putText(frame, f"Figura: {detected_shape}", (x + 10, y - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+                # Mostrar la región de interés con los bordes y el rectángulo
+                #cv2.imshow(f'Canny_Box_{x}_{y}', box_region)
+                #cv2.imshow(f'ROI_Corner_{x}_{y}', roi_corner)
+
+
+
+
 
 ################################################################################################################
 
