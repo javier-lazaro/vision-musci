@@ -45,58 +45,6 @@ def find_intersection(m1, b1, m2, b2):
 
 ##############################################################################################
 
-# Función para identificar figuras específicas basadas en contornos de referencia
-def detect_figure(box_region, reference_Q, reference_J, reference_K):
-    if box_region.size > 0:
-        # Convertir a escala de grises si es necesario
-        if len(box_region.shape) == 3 and box_region.shape[2] == 3:
-            box_gray = cv2.cvtColor(box_region, cv2.COLOR_BGR2GRAY)
-        else:
-            box_gray = box_region
-
-        # Extraer la esquina superior izquierda (ROI)
-        h, w = box_gray.shape
-        roi_corner = box_region[0:h // 6, 0:w // 6]
-
-        # Suavizar y detectar bordes en el ROI
-        blurred = cv2.GaussianBlur(roi_corner, (5, 5), 0)
-        edges = cv2.Canny(blurred, 50, 150)
-
-        # Encontrar contornos en el ROI
-        roi_contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        # Escoger el contorno más grande como referencia
-        if roi_contours:
-            roi_contours = sorted(roi_contours, key=cv2.contourArea, reverse=True)
-            roi_contours = roi_contours[:1]
-        
-        # Dibujar la región de interés en la imagen principal
-        cv2.rectangle(box_region, (0, 0), (w // 6, h // 6), (0, 255, 0), 2)
-        
-        # Dibujar el contorno en la imagen principal
-        cv2.drawContours(box_region, roi_contours, -1, (0, 0, 255), 3)
-
-        detected_shape = "Desconocido"
-        for roi_contour in roi_contours:
-            similarity_to_Q = cv2.matchShapes(roi_contour, reference_Q, cv2.CONTOURS_MATCH_I1, 0)
-            similarity_to_J = cv2.matchShapes(roi_contour, reference_J, cv2.CONTOURS_MATCH_I1, 0)
-            similarity_to_K = cv2.matchShapes(roi_contour, reference_K, cv2.CONTOURS_MATCH_I1, 0)
-
-            # Determinar la carta más similar (ajustar umbral si es necesario)
-            if similarity_to_Q < 0.2:
-                detected_shape = "Q"
-                break
-            elif similarity_to_J < 0.2:
-                detected_shape = "J"
-                break
-            elif similarity_to_K < 0.2:
-                detected_shape = "K"
-                break
-
-        return detected_shape
-    return "Desconocido"
-
-
 # Incorporar la lógica de detección de figuras en tu código principal
 # Cargar los contornos de referencia
 data = np.load("contornos_referencias.npz")
@@ -330,17 +278,30 @@ while success and cv2.waitKey(1) == -1:
                     
                     # Verificar que hay contornos en roi_contours
                     if len(roi_contours) > 0:
-                        # Obtenemos la posición del contorno en el ROI
-                        x, y, w, h = cv2.boundingRect(roi_contours[0])
+                        # Obtenemos la posición (top-left) de la región de interés (ROI) respecto a la imagen principal
+                        x_roi, y_roi, w_roi, h_roi = cv2.boundingRect(box)
 
-                        # Ajustar las coordenadas del contorno para la posición real en la imagen principal
-                        roi_contour_adjusted = roi_contours[0] + np.array([x, y])
+                        # Definir la ROI específica (esquina superior izquierda) dentro de la región del bounding box de la carta
+                        # Usamos las proporciones de box_region para definir la región superior izquierda
+                        top_left_corner_x = x_roi
+                        top_left_corner_y = y_roi
+                        bottom_right_corner_x = x_roi + (w_roi // 6)
+                        bottom_right_corner_y = y_roi + (h_roi // 6)
 
-                        # Dibujamos el contorno ajustado en la imagen principal
-                        cv2.drawContours(frame, [roi_contour_adjusted], -1, (0, 0, 255), 3)
+                        # Dibujar un rectángulo alrededor de la región específica (ROI) donde se busca la figura en la imagen principal
+                        cv2.rectangle(frame, (top_left_corner_x, top_left_corner_y),
+                                    (bottom_right_corner_x, bottom_right_corner_y), (255, 0, 255), 2)  # Rectángulo en magenta
 
-                        # Opcional: Dibujar un rectángulo alrededor del contorno en la imagen principal
-                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                        # Mostrar la ROI específica que contiene la letra
+                        roi_corner = frame[top_left_corner_y:bottom_right_corner_y, top_left_corner_x:bottom_right_corner_x]
+
+                        # Proceder con el dibujo del contorno ajustado a la imagen principal, si corresponde
+                        for roi_contour in roi_contours:
+                            # Ajustar las coordenadas del contorno para la posición real en la imagen principal
+                            roi_contour_adjusted = roi_contour + np.array([x_roi, y_roi])
+
+                            # Dibujar el contorno ajustado en la imagen principal
+                            cv2.drawContours(frame, [roi_contour_adjusted], -1, (0, 0, 255), 3)
 
                     detected_shape = "Desconocido"
                     for roi_contour in roi_contours:
