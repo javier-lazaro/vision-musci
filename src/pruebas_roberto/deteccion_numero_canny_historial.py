@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from colorDetection import ColorDetection
 from roiExtractor import ROIExtractor
-import os
+
 
 # Cargar los valores desde el archivo npz
 with np.load('./static/npz/calibration_data.npz') as data:
@@ -49,7 +49,7 @@ cap = cv2.VideoCapture(0)
 # Crea una ventana llamada 'VentanaCartas'.
 cv2.namedWindow('VentanaCartas')
 cv2.namedWindow('VentanaThresh')
-cv2.namedWindow('Frame with Lines and Points')
+cv2.namedWindow('VentanaCanny')
 
 # Lee el primer fotograma de la cámara.
 success, frame = cap.read() # Succes indica si la lectura fue exitosa.
@@ -63,13 +63,13 @@ while success and cv2.waitKey(1) == -1:
     # Corregir la distorsión del fotograma usando los parámetros cargados
     undistorted_frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_mtx)
 
-    frame_with_lines = undistorted_frame.copy()
+    frame_with_lines = frame.copy()
     # Creamos una mascara basandonos en el frame original
-    roi_frame = undistorted_frame.copy()
-    #mask = np.zeros(undistorted_frame.shape[:2], dtype=np.uint8)
+    roi_frame = frame.copy()
+    mask = np.zeros(frame.shape[:2], dtype=np.uint8)
 
     # Convertir la imagen a escala de grises
-    gray = cv2.cvtColor(undistorted_frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Aplicar un filtro Gaussiano para reducir el ruido
     blurred = cv2.GaussianBlur(gray, (7, 7), 0)
@@ -105,10 +105,10 @@ while success and cv2.waitKey(1) == -1:
         contours = [contour for contour in contours if cv2.contourArea(contour) > media + 2 * desviacion]
 
         # Indicamos en la ventana el número de cartas que hay en la mesa
-        cv2.putText(undistorted_frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
     # Si solo hay un contorno, no es necesario calcular la media y la desviación estándar, es la única carta
     else:
-        cv2.putText(undistorted_frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
     # Obtener la cantidad de cartas actuales y actualizar las ventanas
     current_contour_ids = set(range(len(contours)))
@@ -121,94 +121,24 @@ while success and cv2.waitKey(1) == -1:
     
     # Dibujar y mostrar la región de interés de cada carta detectada
     for idx, c in enumerate(contours):
-        
         # Encontrar el área mínima
         rect = cv2.minAreaRect(c)
-
         # Calcular las coordenadas del rectángulo de área mínima
         box = cv2.boxPoints(rect)
-
         # Normalizar las coordenadas a enteros
         box = np.int32(box)
-
+        #print("Box: ", box)
         # dibujar contornos
         cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
-        cv2.drawContours(undistorted_frame, [box], 0, (0,0, 255), 3)
+        cv2.drawContours(frame, [box], 0, (0,0, 255), 3)
 
-        # Obtener dimensiones reales del rectángulo rotado
-        width = int(rect[1][0])  # Ancho del rectángulo
-        height = int(rect[1][1])  # Alto del rectángulo
-
-        # Validar que las dimensiones sean válidas
-        if width > 0 and height > 0:
-            
-            # Crear los puntos del rectángulo detectado
-            src_pts = np.array(box, dtype="float32")
-            
-            # Definir puntos destino con el tamaño exacto del rectángulo
-            dst_pts = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype="float32")
-            
-            # Calcular la transformación de perspectiva
-            M = cv2.getPerspectiveTransform(src_pts, dst_pts)
-            
-            # Aplicar la transformación a la imagen original
-            warped = cv2.warpPerspective(undistorted_frame, M, (width, height))
-
-            # Escalar la ventana para que se ajuste mejor al tamaño original
-            escala = 1.5  # Factor de escala para aumentar el tamaño de la ventana
-            scaled_width = int(width * escala)
-            scaled_height = int(height * escala)
-            warped_resized = cv2.resize(warped, (scaled_width, scaled_height), interpolation=cv2.INTER_LINEAR)
-            
-            # Aplicar un threshold al área recortada (con fondo negro)
-            gray_card = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)  # Convertir la carta a escala de grises
-            _, card_thresh = cv2.threshold(gray_card, 127, 255, cv2.THRESH_BINARY)  # Aplicar threshold binario
-
-            # Mantener el fondo negro
-            warped[np.where(card_thresh == 0)] = [0, 0, 0]
-
-            # Detectar si la carta es roja o negra
-            # Convertir la carta a espacio de color HSV
-            hsv_card = cv2.cvtColor(warped, cv2.COLOR_BGR2HSV)
-
-            # Definir los límites del color rojo en HSV
-            lower_red1 = np.array([0, 50, 50])
-            upper_red1 = np.array([10, 255, 255])
-            lower_red2 = np.array([170, 50, 50])
-            upper_red2 = np.array([180, 255, 255])
-
-            # Crear máscara para detectar rojos
-            mask_red1 = cv2.inRange(hsv_card, lower_red1, upper_red1)
-            mask_red2 = cv2.inRange(hsv_card, lower_red2, upper_red2)
-            mask_red = mask_red1 + mask_red2
-
-            # Calcular la cantidad de píxeles rojos
-            red_pixels = np.sum(mask_red > 0)
-
-            # Calcular la cantidad de píxeles negros (o áreas oscuras)
-            black_pixels = np.sum(gray_card < 50)
-
-            # Determinar si la carta es Roja o Negra
-            color_label = "Roja" if red_pixels > black_pixels else "Negra"
-            
-            # Añadir la etiqueta de color sobre la carta detectada
-            cv2.putText(warped_resized, color_label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-            
-            # Mostrar la región recortada en una ventana con tamaño ajustado
-            window_name = f'Carta_Rotada_{idx}'
-            cv2.imshow(window_name, warped_resized)
-            
-            # Mover las ventanas de las cartas a la parte inferior derecha
-            cv2.moveWindow(window_name, 650 + (idx % 5) * (scaled_width + 10), 500 + (idx // 5) * (scaled_height + 10))
-
-        
         # Extraer la región del box y mostrarla en una ventana separada
-        #x, y, w, h = cv2.boundingRect(box)
-        #box_region = undistorted_frame[y:y+h, x:x+w]
-        #if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
-        #    window_name = f'Carta_{idx}'  # Nombre único para cada carta detectada
-        #    active_windows[idx] = window_name
-        #    cv2.imshow(window_name, box_region)
+        x, y, w, h = cv2.boundingRect(box)
+        box_region = frame[y:y+h, x:x+w]
+        if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
+            window_name = f'Carta_{idx}'  # Nombre único para cada carta detectada
+            active_windows[idx] = window_name
+            #cv2.imshow(window_name, box_region)
 
             # Mostrar la carta detectada usando la clase ColorDetection
             #color_detection = ColorDetection(frame, box)
@@ -216,9 +146,97 @@ while success and cv2.waitKey(1) == -1:
             #color_detection.show_detected_card()
 
             # Posicionar la ventana en una ubicación diferente
-            #window_x = 100 + (idx % 5) * 600  # Espaciado horizontal entre ventanas aumentado
-            #window_y = 100 + (idx // 5) * 600  # Espaciado vertical entre filas aumentado
-            #cv2.moveWindow(window_name, window_x, window_y)
+            window_x = 100 + (idx % 5) * 600  # Espaciado horizontal entre ventanas aumentado
+            window_y = 100 + (idx // 5) * 600  # Espaciado vertical entre filas aumentado
+            cv2.moveWindow(window_name, window_x, window_y)
+
+############################################################################################
+# Extraer la región del box y mostrarla en una ventana separada
+        # Extraer la región del box y mostrarla en una ventana separada
+        x, y, w, h = cv2.boundingRect(box)
+        box_region = thresh[y:y + h, x:x + w]
+
+        # Historial para estabilizar el número de contornos
+        contour_history = []  # Lista para almacenar los números detectados
+        history_length = 5  # Longitud del historial para estabilizar
+
+        if box_region.size > 0:  # Verificar que el tamaño del contorno es válido
+            
+            # Verificar el número de canales de la imagen
+            if len(box_region.shape) == 3 and box_region.shape[2] == 3:
+                # Convertir la imagen a escala de grises si tiene 3 canales (BGR)
+                box_gray = cv2.cvtColor(box_region, cv2.COLOR_BGR2GRAY)
+            else:
+                # Si la imagen ya está en escala de grises, no es necesario convertirla
+                box_gray = box_region
+
+            # Aplicar un filtro Gaussiano para suavizar la imagen
+            box_blurred = cv2.GaussianBlur(box_gray, (5, 5), 0)
+
+            # Aplicar el detector de bordes Canny
+            canny_edges = cv2.Canny(box_blurred, threshold1=50, threshold2=150)
+
+            # Aplicar una operación de cerrado morfológico para asegurar que los bordes estén bien cerrados
+            kernel = np.ones((5, 5), np.uint8)
+            closed = cv2.morphologyEx(canny_edges, cv2.MORPH_CLOSE, kernel)
+
+            # Mostramos la ventana Canny
+            cv2.imshow('VentanaCanny', closed)
+
+            # Encontrar los contornos en la imagen de la región del box
+            inner_contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Calcular el centro de la región del box y definir un rectángulo
+            height, width = box_region.shape[:2]
+            rect_width = int(width * 0.70)  # Ajustar el tamaño del rectángulo al 75% del ancho
+            rect_height = int(height * 0.85)  # Ajustar el tamaño del rectángulo al 75% de la altura
+
+            # Definir el rectángulo central (top-left y bottom-right)
+            top_left = (width // 2 - rect_width // 2, height // 2 - rect_height // 2)
+            bottom_right = (width // 2 + rect_width // 2, height // 2 + rect_height // 2)
+
+            # Dibujar el rectángulo en la misma imagen donde se dibujarán los contornos
+            #cv2.rectangle(frame, top_left, bottom_right, (0, 255, 0), 2)
+            cv2.rectangle(frame, (x + top_left[0], y + top_left[1]), (x + bottom_right[0], y + bottom_right[1]), (0, 255, 0), 2)
+
+            # Contar cuántos contornos están completamente dentro del rectángulo
+            count = 0
+            for contour in inner_contours:
+                inside_rectangle = True
+                for point in contour:
+                    if not (top_left[0] <= point[0][0] <= bottom_right[0] and top_left[1] <= point[0][1] <= bottom_right[1]):
+                        inside_rectangle = False
+                        break
+                if inside_rectangle:
+                    count += 1
+                    contour[:, 0, 0] += x  # Desplazamiento en X
+                    contour[:, 0, 1] += y  # Desplazamiento en Y
+                    # Dibujar los contornos que están dentro del rectángulo
+                    cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3)
+            
+            # Actualizar el historial de contornos
+            contour_history.append(count)
+            if len(contour_history) > history_length:
+                contour_history.pop(0)  # Eliminar el valor más antiguo si excede el tamaño del historial
+
+            # Calcular un valor estable (por ejemplo, la mediana del historial)
+            stable_count = int(np.median(contour_history))
+
+            # Dibujar texto con el valor estable
+            text = f'Numero: {stable_count}'
+            font_scale = 1
+            font_thickness = 2
+            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0]
+            text_width, text_height = text_size
+
+            # Coordenadas para el texto y el punto verde
+            text_x = x + top_left[0] + (rect_width // 2) - (text_width // 2)
+            text_y = y + top_left[1] - 10  # Espacio por encima del rectángulo
+
+            # Dibujar el texto
+            cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 0, 0), font_thickness, cv2.LINE_AA)
+
+################################################################################################################
 
         # Lo que hacemos en las siguientes lineas es identificar el punto del centro del área del objeto identificado
         # Función que utilizamos
@@ -231,7 +249,7 @@ while success and cv2.waitKey(1) == -1:
         y = int(M['m01']/M['m00']) # Coordenada y del punto
 
         # Para dibujar el círculo del punto central conforme se mueve en la imagen utilizamos la siguiente función
-        cv2.circle(undistorted_frame, # Imagen que se va a dibujar
+        cv2.circle(frame, # Imagen que se va a dibujar
                     (x,y), # Coordenadas donde se va a dibujar
                     15, # Radio del circulo
                     (0,255,0), # Color con el que se va a dibujar, verde.
@@ -239,7 +257,7 @@ while success and cv2.waitKey(1) == -1:
         
         # Para indicar las coordenadas que tiene el objeto en la imagen conforme se mueve: 
         font = cv2.FONT_HERSHEY_SIMPLEX # Con esto declaramos la fuente / tipografía del texto
-        cv2.putText(undistorted_frame, # Imagen que se va a dibujar
+        cv2.putText(frame, # Imagen que se va a dibujar
                     '{}, {}'.format(x,y), # Texto de las coordendas que se van a indicar, 'x' y 'y' entre las llaves. 
                     (x+10, y), # Ubicación con respecto al punto, mas  a la derecha obviamente para que no se solape
                     font, # Fuente que se había definido antes
@@ -250,23 +268,23 @@ while success and cv2.waitKey(1) == -1:
         
         ### EXTRACION DE ROIs ###
 
-        #roi_extractor = ROIExtractor()
-        #roi_list = roi_extractor.extract_rois(box)
-        #for roi in roi_list:
-        #    cv2.polylines(frame_with_lines, [np.array(roi, np.int32).reshape((-1, 1, 2))], isClosed=True, color=(0, 255, 0), thickness=2)
-        #
-        #if len(roi_list) > 0:
-        #    for roi in roi_list:                   
-        #        # Fill the polygon in the mask
-        #        roi_np = np.array(roi, dtype=np.int32).reshape((-1, 1, 2))
-        #        cv2.fillPoly(mask, [roi_np], color=255)
-        #        # Extract the ROI using the mask
-        #        roi_masked = cv2.bitwise_and(roi_frame, roi_frame, mask=mask)
-        #        # Optional: Crop the bounding rectangle for simpler processing (if needed)
-        #        #x, y, w, h = cv2.boundingRect(roi_np)
-        #        #cropped_roi = roi_masked[y:y+h, x:x+w]
-        #else:
-        #    roi_masked = cv2.bitwise_and(roi_frame, roi_frame, mask=mask)
+        roi_extractor = ROIExtractor()
+        roi_list = roi_extractor.extract_rois(box)
+        for roi in roi_list:
+            cv2.polylines(frame_with_lines, [np.array(roi, np.int32).reshape((-1, 1, 2))], isClosed=True, color=(0, 255, 0), thickness=2)
+
+        if len(roi_list) > 0:
+            for roi in roi_list:                   
+                # Fill the polygon in the mask
+                roi_np = np.array(roi, dtype=np.int32).reshape((-1, 1, 2))
+                cv2.fillPoly(mask, [roi_np], color=255)
+                # Extract the ROI using the mask
+                roi_masked = cv2.bitwise_and(roi_frame, roi_frame, mask=mask)
+                # Optional: Crop the bounding rectangle for simpler processing (if needed)
+                #x, y, w, h = cv2.boundingRect(roi_np)
+                #cropped_roi = roi_masked[y:y+h, x:x+w]
+        else:
+            roi_masked = cv2.bitwise_and(roi_frame, roi_frame, mask=mask)
 
 
     # Display the results
@@ -282,14 +300,12 @@ while success and cv2.waitKey(1) == -1:
 
         
     # Display the frame with lines and points
-    cv2.imshow('VentanaCartas', undistorted_frame)  # Muestra el fotograma actual en la ventana.
-    cv2.moveWindow('VentanaCartas', 0, 0) # Parte superior izquierda
+    #cv2.imshow("Frame with Lines and Points", frame_with_lines)
 
-    cv2.imshow("Frame with Lines and Points", frame_with_lines)
-    cv2.moveWindow("Frame with Lines and Points", 650, 0) # Parte superior derecha
-
+    
+        
+    cv2.imshow('VentanaCartas', frame)  # Muestra el fotograma actual en la ventana.
     cv2.imshow('VentanaThresh', thresh)  # Muestra el fotograma actual en la ventana.
-    cv2.moveWindow('VentanaThresh', 0,500) # Parte inferior izquierda
 
     success, frame = cap.read()  # Lee el siguiente fotograma de la cámara. 
 
