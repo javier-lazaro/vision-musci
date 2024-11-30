@@ -16,13 +16,6 @@ if os.path.exists(calibration_path):
 else:
     raise FileNotFoundError(f"El archivo de calibración no se encuentra en la ruta especificada: {calibration_path}")
 
-# Función para desplazar dos puntos una distancia N de forma paralela
-def parallel_shift(p1, p2, distance):
-    direction = np.array([p2[1] - p1[1], -(p2[0] - p1[0])])  # Perpendicular vector
-    unit_direction = direction / np.linalg.norm(direction)
-    shift_vector = unit_direction * distance
-    return p1 + shift_vector, p2 + shift_vector
-
 def ordenar_puntos(box):
     # Convertimos a un array numpy con 4 filas y 2 columnas
     puntos = np.array(box)
@@ -46,24 +39,6 @@ def ordenar_puntos(box):
         puntos_ordenados = np.roll(puntos_ordenados, -1, axis=0)  # Rotar los puntos en sentido antihorario
 
     return puntos_ordenados
-
-# Función para extraer los puntos en los que intersectan dos líneas
-def find_intersection(m1, b1, m2, b2):
-    # Check if lines are parallel (same slope)
-    if m1 == m2:
-        return None
-    
-    # Calculate intersection
-    if m1 is not None and m2 is not None:
-        x = (b2 - b1) / (m1 - m2)
-        y = m1 * x + b1
-    elif m1 is None:
-        x = b1
-        y = m2 * x + b2
-    elif m2 is None:
-        x = b2
-        y = m1 * x + b1
-    return (int(np.round(x)), int(np.round(y)))
 
 # Lectura de imagen en tiempo real
 cap = cv2.VideoCapture(0)
