@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from colorDetection import ColorDetection
 from roiExtractor import ROIExtractor
+from detector_figuras import FigureDetector
 import os
 
 # Cargar los valores desde el archivo npz
@@ -233,11 +234,23 @@ while success and cv2.waitKey(1) == -1:
             color_label = "Amarilla"
 
 
+        ## FIGURE DETECTOR ##
+        fd = FigureDetector()
+
+        figure_label = fd.detectar_figuras(warped_resized)
+
+        cv2.putText(
+            warped_resized, f"Figura: {figure_label}", 
+            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA
+        )
+
+        ## END OF FIGURE DETECTOR ##
+
         # Añadir la etiqueta de porcentajes y el color sobre la carta detectada
         cv2.putText(warped_resized, f"Color: {color_label}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(warped_resized, f"Roja: {red_percentage:.2f}%", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
-        cv2.putText(warped_resized, f"Amarilla: {yellow_percentage:.2f}%", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(warped_resized, f"Negra: {black_percentage:.2f}%", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
+        #cv2.putText(warped_resized, f"Roja: {red_percentage:.2f}%", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+        #cv2.putText(warped_resized, f"Amarilla: {yellow_percentage:.2f}%", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+        #cv2.putText(warped_resized, f"Negra: {black_percentage:.2f}%", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
         
         # Mostrar la región recortada en una ventana con tamaño ajustado
         window_name = f'Carta_Rotada_{idx}'
