@@ -8,40 +8,6 @@ with np.load('./static/npz/calibration_data.npz') as data:
     loaded_mtx = data['camera_matrix']
     loaded_dist = data['dist_coeffs']
 
-# Función para obtener la línea que pasa por dos puntos
-def calculate_line(p1, p2):
-    m = (p2[1] - p1[1]) / (p2[0] - p1[0]) if p2[0] != p1[0] else None
-    if m is not None:
-        b = p1[1] - m * p1[0]
-    else:
-        b = p1[0]  # Vertical line case
-    return m, b
-
-# Función para desplazar dos puntos una distancia N de forma paralela
-def parallel_shift(p1, p2, distance):
-    direction = np.array([p2[1] - p1[1], -(p2[0] - p1[0])])  # Perpendicular vector
-    unit_direction = direction / np.linalg.norm(direction)
-    shift_vector = unit_direction * distance
-    return p1 + shift_vector, p2 + shift_vector
-
-# Función para extraer los puntos en los que intersectan dos líneas
-def find_intersection(m1, b1, m2, b2):
-    # Check if lines are parallel (same slope)
-    if m1 == m2:
-        return None
-    
-    # Calculate intersection
-    if m1 is not None and m2 is not None:
-        x = (b2 - b1) / (m1 - m2)
-        y = m1 * x + b1
-    elif m1 is None:
-        x = b1
-        y = m2 * x + b2
-    elif m2 is None:
-        x = b2
-        y = m1 * x + b1
-    return (int(np.round(x)), int(np.round(y)))
-
 # Lectura de imagen en tiempo real
 cap = cv2.VideoCapture(0)
 
