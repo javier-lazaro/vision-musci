@@ -231,13 +231,14 @@ while success and cv2.waitKey(1) == -1:
         if red_percentage > yellow_percentage and red_percentage > black_percentage:
             color_label = "Roja"
         elif yellow_percentage > red_percentage and yellow_percentage > black_percentage:
-            color_label = "Amarilla"
+            #color_label = "Amarilla"
+            fgura = True
 
 
         ## FIGURE DETECTOR ##
         fd = FigureDetector()
 
-        figure_label = fd.detectar_figuras(warped_resized)
+        figure_label = fd.detectar_figuras(warped_resized, color=color_label)
 
         cv2.putText(
             warped_resized, f"Figura: {figure_label}", 
