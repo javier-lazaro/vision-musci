@@ -41,7 +41,7 @@ def ordenar_puntos(box):
     return puntos_ordenados
 
 # Lectura de imagen en tiempo real
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 # Crea una ventana llamada 'VentanaCartas'.
 cv2.namedWindow('VentanaCartas')
@@ -59,10 +59,11 @@ while success and cv2.waitKey(1) == -1:
 
     # Corregir la distorsión del fotograma usando los parámetros cargados
     undistorted_frame = cv2.undistort(frame, loaded_mtx, loaded_dist, None, loaded_mtx)
+    warped_frame = undistorted_frame.copy()
 
-    frame_with_lines = undistorted_frame.copy()
+    #frame_with_lines = undistorted_frame.copy()
     # Creamos una mascara basandonos en el frame original
-    roi_frame = undistorted_frame.copy()
+    #roi_frame = undistorted_frame.copy()
     #mask = np.zeros(undistorted_frame.shape[:2], dtype=np.uint8)
 
     # Convertir la imagen a escala de grises
@@ -155,7 +156,7 @@ while success and cv2.waitKey(1) == -1:
         M = cv2.getPerspectiveTransform(src_pts, dst_pts)
         
         # Aplicar la transformación a la imagen original
-        warped = cv2.warpPerspective(undistorted_frame, M, (width, height))
+        warped = cv2.warpPerspective(warped_frame, M, (width, height))
 
         # Rotar la imagen resultante si es necesario para que siempre esté en orientación vertical
         if warped.shape[1] > warped.shape[0]:  # Si el ancho es mayor que la altura, significa que está horizontal
@@ -332,8 +333,8 @@ while success and cv2.waitKey(1) == -1:
     cv2.imshow('VentanaCartas', undistorted_frame)  # Muestra el fotograma actual en la ventana.
     cv2.moveWindow('VentanaCartas', 0, 0) # Parte superior izquierda
 
-    cv2.imshow("Frame with Lines and Points", frame_with_lines)
-    cv2.moveWindow("Frame with Lines and Points", 650, 0) # Parte superior derecha
+    #cv2.imshow("Frame with Lines and Points", frame_with_lines)
+    #cv2.moveWindow("Frame with Lines and Points", 650, 0) # Parte superior derecha
 
     cv2.imshow('VentanaThresh', thresh)  # Muestra el fotograma actual en la ventana.
     cv2.moveWindow('VentanaThresh', 0,500) # Parte inferior izquierda
