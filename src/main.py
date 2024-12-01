@@ -47,6 +47,103 @@ def ordenar_puntos(box):
 
     return puntos_ordenados
 
+def detectar_color_carta(box, idx, color_detection_frame):
+    # Usamos una copia del `box` para mantener el estado original
+    box = ordenar_puntos(box)
+
+    # Obtener dimensiones reales del rectángulo rotado
+    width = int(np.linalg.norm(box[0] - box[1]))
+    height = int(np.linalg.norm(box[1] - box[2]))
+
+    # Asegurarse de que height sea el lado mayor y width el lado menor
+    if height < width:
+        width, height = height, width
+
+    # Definir puntos destino con el tamaño exacto del rectángulo
+    dst_pts = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype="float32")
+
+    # Crear los puntos del rectángulo detectado
+    src_pts = np.array(box, dtype="float32")
+
+    # Calcular la transformación de perspectiva
+    M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+
+    # Aplicar la transformación a la imagen original
+    warped = cv2.warpPerspective(color_detection_frame, M, (width, height))
+
+    # Rotar la imagen resultante si es necesario para que siempre esté en orientación vertical
+    if warped.shape[1] > warped.shape[0]:
+        warped = cv2.rotate(warped, cv2.ROTATE_90_CLOCKWISE)
+
+    # Escalar la ventana para que se ajuste mejor al tamaño original
+    escala = 1.5
+    scaled_width = int(width * escala)
+    scaled_height = int(height * escala)
+    warped_resized = cv2.resize(warped, (scaled_width, scaled_height), interpolation=cv2.INTER_LINEAR)
+
+    # Detectar si la carta es roja, amarilla o negra
+    hsv_card = cv2.cvtColor(warped, cv2.COLOR_BGR2HSV)
+
+    # Definir los límites del color rojo en HSV
+    lower_red1 = np.array([0, 50, 50])
+    upper_red1 = np.array([10, 255, 255])
+    lower_red2 = np.array([170, 50, 50])
+    upper_red2 = np.array([180, 255, 255])
+
+    # Definir los límites del color amarillo en HSV
+    lower_yellow = np.array([20, 100, 100])
+    upper_yellow = np.array([30, 255, 255])
+
+    # Crear máscara para detectar rojos y amarillos
+    mask_red1 = cv2.inRange(hsv_card, lower_red1, upper_red1)
+    mask_red2 = cv2.inRange(hsv_card, lower_red2, upper_red2)
+    mask_red = mask_red1 + mask_red2
+    mask_yellow = cv2.inRange(hsv_card, lower_yellow, upper_yellow)
+
+    # Calcular la cantidad de píxeles oscuros (negros) en escala de grises
+    gray_card_central = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
+    mask_black = cv2.inRange(gray_card_central, 0, 80)
+
+    # Calcular la cantidad de píxeles para cada color
+    total_pixels = hsv_card.shape[0] * hsv_card.shape[1]
+    red_pixels = np.sum(mask_red > 0)
+    yellow_pixels = np.sum(mask_yellow > 0)
+    black_pixels = np.sum(mask_black > 0)
+
+    # Calcular el porcentaje de cada color
+    red_percentage = (red_pixels / total_pixels) * 100
+    yellow_percentage = (yellow_pixels / total_pixels) * 100
+    black_percentage = (black_pixels / total_pixels) * 100
+
+    # Determinar si la carta es una figura
+    figura = yellow_percentage > 5
+
+    # Determinar el color predominante
+    color_label = "Negra"
+    if red_percentage > yellow_percentage and red_percentage > black_percentage:
+        color_label = "Roja"
+    elif yellow_percentage > red_percentage and yellow_percentage > black_percentage:
+        color_label = "Amarilla"
+
+    # Añadir la etiqueta de porcentajes y el color sobre la carta detectada
+    cv2.putText(warped_resized, f"Color: {color_label}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.putText(warped_resized, f"Roja: {red_percentage:.2f}%", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+    cv2.putText(warped_resized, f"Amarilla: {yellow_percentage:.2f}%", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+    cv2.putText(warped_resized, f"Negra: {black_percentage:.2f}%", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
+
+    # Mostrar la región recortada en una ventana con tamaño ajustado
+    window_name = f'Carta_Rotada_{idx}'
+    cv2.imshow(window_name, warped_resized)
+
+    # Actualizar el diccionario de ventanas activas
+    active_windows[idx] = window_name
+
+    # Mover las ventanas de las cartas a la parte inferior derecha
+    cv2.moveWindow(window_name, 650 + (idx % 5) * (scaled_width + 10), 500 + (idx // 5) * (scaled_height + 10))
+
+    return figura
+
+
 # Función para extraer los puntos en los que intersectan dos líneas
 def find_intersection(m1, b1, m2, b2):
     # Check if lines are parallel (same slope)
@@ -89,6 +186,9 @@ while success and cv2.waitKey(1) == -1:
     # Creamos una mascara basandonos en el frame original
     roi_frame = undistorted_frame.copy()
     #mask = np.zeros(undistorted_frame.shape[:2], dtype=np.uint8)
+
+    # Creamos una mascara basandonos en el frame original
+    color_detection_frame = undistorted_frame.copy()
 
     # Convertir la imagen a escala de grises
     gray = cv2.cvtColor(undistorted_frame, cv2.COLOR_BGR2GRAY)
@@ -154,124 +254,12 @@ while success and cv2.waitKey(1) == -1:
         # Normalizar las coordenadas a enteros
         box = np.int32(box)
 
-        # Utilizar esta función para ordenar los puntos antes de definir `src_pts`
-        box = ordenar_puntos(box)
+        # Llamada a la función para detectar el color de la carta
+        detectar_color_carta(box, idx, color_detection_frame)
 
         # Dibujar contornos
-        #cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
-        #cv2.drawContours(undistorted_frame, [box], 0, (0,0, 255), 3)
-
-        # Obtener dimensiones reales del rectángulo rotado
-        width = int(rect[1][0])  # Ancho del rectángulo
-        height = int(rect[1][1])  # Alto del rectángulo
-
-        # Asegurarse de que height sea el lado mayor y width el lado menor
-        if height < width:
-            width, height = height, width
-            
-        # Definir puntos destino con el tamaño exacto del rectángulo
-        dst_pts = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype="float32")
-
-
-        # Crear los puntos del rectángulo detectado
-        src_pts = np.array(box, dtype="float32")
-        
-        # Calcular la transformación de perspectiva
-        M = cv2.getPerspectiveTransform(src_pts, dst_pts)
-        
-        # Aplicar la transformación a la imagen original
-        warped = cv2.warpPerspective(undistorted_frame, M, (width, height))
-
-        # Rotar la imagen resultante si es necesario para que siempre esté en orientación vertical
-        if warped.shape[1] > warped.shape[0]:  # Si el ancho es mayor que la altura, significa que está horizontal
-            warped = cv2.rotate(warped, cv2.ROTATE_90_CLOCKWISE)
-
-        # Escalar la ventana para que se ajuste mejor al tamaño original
-        escala = 1.5  # Factor de escala para aumentar el tamaño de la ventana
-        scaled_width = int(width * escala)
-        scaled_height = int(height * escala)
-        warped_resized = cv2.resize(warped, (scaled_width, scaled_height), interpolation=cv2.INTER_LINEAR)
-        
-        # Aplicar un threshold al área recortada (con fondo negro)
-        #gray_card = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)  # Convertir la carta a escala de grises
-        #_, card_thresh = cv2.threshold(gray_card, 127, 255, cv2.THRESH_BINARY)  # Aplicar threshold binario
-
-        # Mantener el fondo negro
-        #warped[np.where(card_thresh == 0)] = [0, 0, 0]
-
-        # Definir una sub-región central de la carta para evitar los bordes
-        h, w = warped.shape[:2]
-        offset = 0  # Porcentaje para reducir el ROI a un 60% del área original
-        x_start = int(w * offset)
-        y_start = int(h * offset)
-        x_end = int(w * (1 - offset))
-        y_end = int(h * (1 - offset))
-        warped_central = warped[y_start:y_end, x_start:x_end]
-
-        # Convertir la sub-región de la carta a espacio de color HSV
-        hsv_card = cv2.cvtColor(warped_central, cv2.COLOR_BGR2HSV)
-        
-        # Detectar si la carta es roja o negra
-        # Convertir la carta a espacio de color HSV
-        hsv_card = cv2.cvtColor(warped, cv2.COLOR_BGR2HSV)
-
-        # Definir los límites del color rojo en HSV
-        lower_red1 = np.array([0, 50, 50])
-        upper_red1 = np.array([10, 255, 255])
-        lower_red2 = np.array([170, 50, 50])
-        upper_red2 = np.array([180, 255, 255])
-        # Definir los límites del color amarillo en HSV
-        lower_yellow = np.array([20, 100, 100])
-        upper_yellow = np.array([30, 255, 255])
-
-        # Crear máscara para detectar rojos
-        mask_red1 = cv2.inRange(hsv_card, lower_red1, upper_red1)
-        mask_red2 = cv2.inRange(hsv_card, lower_red2, upper_red2)
-        mask_red = mask_red1 + mask_red2
-        mask_yellow = cv2.inRange(hsv_card, lower_yellow, upper_yellow)
-
-        # Calcular la cantidad de píxeles rojos
-        red_pixels = np.sum(mask_red > 0)
-
-        # Calcular la cantidad de píxeles oscuros (negros) en escala de grises
-        gray_card_central = cv2.cvtColor(warped_central, cv2.COLOR_BGR2GRAY)
-        mask_black = cv2.inRange(gray_card_central, 0, 80)
-        #black_pixels = np.sum(gray_card_central < 80)
-
-        # Calcular la cantidad de píxeles para cada color
-        total_pixels = hsv_card.shape[0] * hsv_card.shape[1]
-        red_pixels = np.sum(mask_red > 0)
-        yellow_pixels = np.sum(mask_yellow > 0)
-        black_pixels = np.sum(mask_black > 0)
-
-        # Calcular el porcentaje de cada color
-        red_percentage = (red_pixels / total_pixels) * 100
-        yellow_percentage = (yellow_pixels / total_pixels) * 100
-        black_percentage = (black_pixels / total_pixels) * 100
-
-        # Determinar el color predominante
-        color_label = "Negra"
-        if red_percentage > yellow_percentage and red_percentage > black_percentage:
-            color_label = "Roja"
-        elif yellow_percentage > red_percentage and yellow_percentage > black_percentage:
-            color_label = "Amarilla"
-
-
-        # Añadir la etiqueta de porcentajes y el color sobre la carta detectada
-        cv2.putText(warped_resized, f"Color: {color_label}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(warped_resized, f"Roja: {red_percentage:.2f}%", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
-        cv2.putText(warped_resized, f"Amarilla: {yellow_percentage:.2f}%", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(warped_resized, f"Negra: {black_percentage:.2f}%", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
-        
-        # Mostrar la región recortada en una ventana con tamaño ajustado
-        window_name = f'Carta_Rotada_{idx}'
-        cv2.imshow(window_name, warped_resized)
-
-        # Actualizar el diccionario de ventanas activas
-        active_windows[idx] = window_name
-        
-        # Mover las ventanas de las cartas a la parte inferior derecha
-        cv2.moveWindow(window_name, 650 + (idx % 5) * (scaled_width + 10), 500 + (idx // 5) * (scaled_height + 10))
+        cv2.drawContours(thresh, [box], 0, (0,0, 255), 3)
+        cv2.drawContours(undistorted_frame, [box], 0, (0,0, 255), 3)
 
         
         # Extraer la región del box y mostrarla en una ventana separada
