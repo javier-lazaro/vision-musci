@@ -47,11 +47,13 @@ def find_intersection(m1, b1, m2, b2):
 
 # Incorporar la lógica de detección de figuras en tu código principal
 # Cargar los contornos de referencia
-data = np.load("contornos_referencias.npz")
+data = np.load("rois_areas_referencias.npz")
 reference_Q = data["Q"]
 reference_J = data["J"]
 reference_K = data["K"]
-
+area_Q = data["area_Q"]
+area_K = data["area_K"]
+area_J = data["area_J"]
 ##############################################################################################
 
 
@@ -251,7 +253,7 @@ while success and cv2.waitKey(1) == -1:
             count = len(filtered_contours)
 
             # Determinar si la carta es un número o una figura
-            if count > 0:  # Umbral ajustable para distinguir entre números y figuras
+            if count > 2000:  # Umbral ajustable para distinguir entre números y figuras
                 # Procesar como figura
                 if box_region.size > 0:
                     # Convertir a escala de grises si es necesario
@@ -303,23 +305,36 @@ while success and cv2.waitKey(1) == -1:
                             # Dibujar el contorno ajustado en la imagen principal
                             cv2.drawContours(frame, [roi_contour_adjusted], -1, (0, 0, 255), 3)
 
-                    detected_shape = "Desconocido"
-                    for roi_contour in roi_contours:
-                        similarity_to_Q = cv2.matchShapes(roi_contour, reference_Q, cv2.CONTOURS_MATCH_I1, 0)
-                        similarity_to_J = cv2.matchShapes(roi_contour, reference_J, cv2.CONTOURS_MATCH_I1, 0)
-                        similarity_to_K = cv2.matchShapes(roi_contour, reference_K, cv2.CONTOURS_MATCH_I1, 0)
+                        for roi_contour in roi_contours:
+                            # Calcular el área del contorno detectado
+                            detected_area = cv2.contourArea(roi_contour)
 
-                        # Determinar la carta más similar (ajustar umbral si es necesario)
-                        if similarity_to_Q < 0.2:
-                            detected_shape = "Q"
-                            break
-                        elif similarity_to_J < 0.2:
-                            detected_shape = "J"
-                            break
-                        elif similarity_to_K < 0.2:
-                            detected_shape = "K"
-                            break
-                text = f'Figura: {detected_shape}'  # Cambiar el texto para mostrar la figura
+                            # Normalizar el área sobre la ROI completa
+                            normalized_area = detected_area / (roi_corner.shape[0] * roi_corner.shape[1])
+
+                            # Definir los umbrales para las diferentes figuras
+                            # Estos umbrales son solo ejemplos y debes ajustarlos según los resultados de tus pruebas
+                            q_area_threshold = 0.15  # Umbral para la figura Q
+                            j_area_threshold = 0.05  # Umbral para la figura J
+                            k_area_min_threshold = 0.10  # Umbral inferior para la figura K
+                            k_area_max_threshold = 0.20  # Umbral superior para la figura K
+
+                            # Determinar la carta más similar usando el área normalizada
+                            if normalized_area > q_area_threshold:
+                                detected_shape = "Q"
+                            elif normalized_area <= j_area_threshold:
+                                detected_shape = "J"
+                            elif k_area_min_threshold < normalized_area < k_area_max_threshold:
+                                detected_shape = "K"
+                            else:
+                                detected_shape = "Desconocido"
+
+                            # Si ya se identificó una figura, salir del bucle
+                            if detected_shape != "Desconocido":
+                                break
+                if detected_shape == "Desconocido":
+                    detected_shape = "J"
+                text = f'Figura: {detected_shape} y {detected_area}'  # Cambiar el texto para mostrar la figura
             else:
                 # Dibujar los contornos filtrados
                 for contour in filtered_contours:

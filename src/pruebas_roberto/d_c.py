@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-# Función para extraer contornos de referencia desde una imagen de carta
+# Función para extraer la ROI de referencia y calcular el área del contorno
 def process_reference_card(image):
     # Convertir la imagen a escala de grises
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -35,7 +35,7 @@ def process_reference_card(image):
 
     # Si no se encontraron contornos válidos, detener
     if not contours:
-        return None
+        return None, None, None
 
     # Procesar la esquina superior izquierda (ROI) de la primera carta detectada
     largest_contour = contours[0]
@@ -44,7 +44,7 @@ def process_reference_card(image):
 
     # Extraer la esquina superior izquierda para identificar la figura
     roi_corner = box_region[0:h // 6, 0:w // 6]
-    
+
     # Suavizar y detectar bordes en el ROI
     blurred = cv2.GaussianBlur(roi_corner, (5, 5), 0)
     edges = cv2.Canny(blurred, 50, 150)
@@ -52,9 +52,11 @@ def process_reference_card(image):
     # Encontrar contornos en la ROI procesada
     roi_contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Seleccionar el contorno más grande como referencia
+    # Seleccionar el contorno más grande como referencia y calcular el área
     if roi_contours:
-        return max(roi_contours, key=cv2.contourArea), (x, y, w, h), roi_corner
+        largest_roi_contour = max(roi_contours, key=cv2.contourArea)
+        contour_area = cv2.contourArea(largest_roi_contour)
+        return roi_corner, contour_area, (x, y, w, h)
     return None, None, None
 
 # Cargar imágenes de referencia
@@ -66,59 +68,34 @@ reference_image_J = cv2.imread("static/images/figura_J.jpg")
 if reference_image_Q is None or reference_image_K is None or reference_image_J is None:
     raise FileNotFoundError("Una o más imágenes de referencia no se pudieron cargar. Verifica las rutas.")
 
-# Procesar cada imagen de referencia
-"""
-reference_Q, bounding_box_Q, roi_corner_Q = process_reference_card(reference_image_Q)
-reference_K, bounding_box_K, roi_corner_K = process_reference_card(reference_image_K)
-reference_J, bounding_box_J, roi_corner_J = process_reference_card(reference_image_J)
-"""
-
 # Procesar cada imagen de referencia para obtener la ROI específica y el área del contorno
-reference_Q, area_Q, bounding_box_Q = process_reference_card(reference_image_Q)
-reference_K, area_K, bounding_box_K = process_reference_card(reference_image_K)
-reference_J, area_J, bounding_box_J = process_reference_card(reference_image_J)
+roi_corner_Q, area_Q, bounding_box_Q = process_reference_card(reference_image_Q)
+roi_corner_K, area_K, bounding_box_K = process_reference_card(reference_image_K)
+roi_corner_J, area_J, bounding_box_J = process_reference_card(reference_image_J)
 
+# Verificar que se hayan encontrado ROIs y áreas válidas
+if roi_corner_Q is None or roi_corner_K is None or roi_corner_J is None:
+    raise ValueError("No se encontraron ROIs válidas en una o más imágenes de referencia.")
 
 # Guardar las ROIs de referencia y las áreas de los contornos en un archivo para su uso posterior
 # Almacena las ROIs de referencia Q, K, J y las áreas en un archivo npz
-np.savez("rois_areas_referencias.npz", Q=reference_Q, K=reference_K, J=roi_corner_J,
+np.savez("rois_areas_referencias.npz", Q=roi_corner_Q, K=roi_corner_K, J=roi_corner_J,
          area_Q=area_Q, area_K=area_K, area_J=area_J)
 print("ROIs y áreas de referencia guardadas exitosamente en 'rois_areas_referencias.npz'.")
 
-# Verificar que se hayan encontrado contornos válidos
-if reference_Q is None or reference_K is None or reference_J is None:
-    raise ValueError("No se encontraron contornos válidos en una o más imágenes de referencia.")
-
-# Mostrar el contorno detectado tanto en la imagen completa como en la ROI
-def show_contour(image, contour, bounding_box, roi_corner, title, position_x=0, position_y=0):
-    # Crear una copia de la imagen original para dibujar el contorno completo
-    image_with_contour = image.copy()
-    if len(image_with_contour.shape) == 2:  # Si es en escala de grises, convertir a BGR
-        image_with_contour = cv2.cvtColor(image_with_contour, cv2.COLOR_GRAY2BGR)
-
-    # Dibujar el contorno completo en la imagen original
-    cv2.drawContours(image_with_contour, [contour], -1, (0, 255, 0), 2)  # Contorno en verde
-
-    # Dibujar un rectángulo alrededor de la ROI completa (toda la carta)
-    x, y, w, h = bounding_box
-    cv2.rectangle(image_with_contour, (x, y), (x + w, y + h), (255, 0, 0), 2)  # Rectángulo en azul
-
-    # Dibujar un rectángulo alrededor de la ROI específica (esquina superior izquierda)
-    cv2.rectangle(image_with_contour, (x, y), (x + w // 6, y + h // 6), (255, 0, 255), 2)  # Rectángulo en magenta
-
-    # Mostrar la imagen completa con el contorno y la ROI
-    cv2.imshow(f"{title} - Imagen Completa", image_with_contour)
-    cv2.moveWindow(f"{title} - Imagen Completa", position_x, position_y)
-
+# Mostrar las ROIs detectadas y el área del contorno
+def show_roi(roi_corner, area, title, position_x=0, position_y=0):
     # Mostrar la ROI específica (esquina superior izquierda)
-    if roi_corner is not None:
-        cv2.imshow(f"{title} - ROI Esquina Superior Izquierda", roi_corner)
-        cv2.moveWindow(f"{title} - ROI Esquina Superior Izquierda", position_x + 400, position_y)
+    cv2.imshow(f"{title} - ROI Esquina Superior Izquierda", roi_corner)
+    cv2.moveWindow(f"{title} - ROI Esquina Superior Izquierda", position_x, position_y)
 
-# Mostrar contornos detectados en la imagen completa y en la ROI específica
-show_contour(reference_image_Q, reference_Q, bounding_box_Q, roi_corner_Q, "Contorno Detectado - Q", position_x=100, position_y=100)
-show_contour(reference_image_K, reference_K, bounding_box_K, roi_corner_K, "Contorno Detectado - K", position_x=600, position_y=100)
-show_contour(reference_image_J, reference_J, bounding_box_J, roi_corner_J, "Contorno Detectado - J", position_x=1100, position_y=100)
+    # Imprimir el área del contorno
+    print(f"Área del contorno de {title}: {area} píxeles")
+
+# Mostrar las ROIs específicas para Q, K y J
+show_roi(roi_corner_Q, area_Q, "ROI Detectada - Q", position_x=100, position_y=100)
+show_roi(roi_corner_K, area_K, "ROI Detectada - K", position_x=600, position_y=100)
+show_roi(roi_corner_J, area_J, "ROI Detectada - J", position_x=1100, position_y=100)
 
 # Esperar a que se cierren las ventanas
 cv2.waitKey(0)
