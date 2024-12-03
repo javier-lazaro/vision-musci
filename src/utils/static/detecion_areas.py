@@ -79,9 +79,9 @@ if roi_corner_Q is None or roi_corner_K is None or roi_corner_J is None:
 
 # Guardar las ROIs de referencia y las áreas de los contornos en un archivo para su uso posterior
 # Almacena las ROIs de referencia Q, K, J y las áreas en un archivo npz
-np.savez("rois_areas_referencias.npz", Q=roi_corner_Q, K=roi_corner_K, J=roi_corner_J,
+np.savez("./static/npz/areas_referencias.npz", Q=roi_corner_Q, K=roi_corner_K, J=roi_corner_J,
          area_Q=area_Q, area_K=area_K, area_J=area_J)
-print("ROIs y áreas de referencia guardadas exitosamente en 'rois_areas_referencias.npz'.")
+print("ROIs y áreas de referencia guardadas exitosamente en 'areas_referencias.npz'.")
 
 # Mostrar las ROIs detectadas y el área del contorno
 def show_roi(roi_corner, area, title, position_x=0, position_y=0):

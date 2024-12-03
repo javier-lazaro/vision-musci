@@ -72,4 +72,4 @@ if len(objpoints) > 0:
 else:
     print("No se encontraron suficientes puntos para calibrar la cámara.")
 
-np.savez('calibration_data_2.npz', camera_matrix = mtx, dist_coeffs = dist)
+np.savez('./static/npz/calibration_data_2.npz', camera_matrix = mtx, dist_coeffs = dist)
