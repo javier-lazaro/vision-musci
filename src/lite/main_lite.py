@@ -1,11 +1,14 @@
 import cv2
 import numpy as np
-from utils.real_time import detector_numero as dn
-from utils.real_time import detector_color as dc
-from utils.real_time.detector_figuras import FigureDetector
+import detector_numero as dn
+import os
+
+# Obtener la ruta absoluta al archivo
+base_dir = os.path.dirname(os.path.abspath(__file__))
+calibration_data_path = os.path.join(base_dir, "static/calibration_data.npz")
 
 # Cargar los valores de calibración de la cámara
-with np.load('./static/npz/calibration_data.npz') as data:
+with np.load(calibration_data_path) as data:
     loaded_mtx = data['camera_matrix']
     loaded_dist = data['dist_coeffs']
 
@@ -15,7 +18,6 @@ cap = cv2.VideoCapture(0)
 # Creación de las ventanas necesarias
 cv2.namedWindow('VentanaCartas')
 cv2.namedWindow('VentanaThresh')
-cv2.namedWindow('VentanaCanny')
 
 # Lectura del primer fotograma de la cámara
 success, frame = cap.read()
@@ -23,40 +25,22 @@ success, frame = cap.read()
 # Diccionario para almacenar las ventanas activas por carta
 active_windows = {}
 
-# Variables para activar/desactivar la detección de figuras, colores, números y calibración de la cámara
-yolo_detector,color_detector, number_detector, calibracion = False, False, False, False
+# Variables para activar/desactivar la calibración de la cámara
+calibracion = False
 
 # Bucle para mostrar el video en tiempo real.
 while success:
 
     # Lógica de la detección de teclas
     key = cv2.waitKey(1) & 0xFF
-    if key == ord('c'):  # Presiona 'c' para activar el detector de color
-        color_detector = not color_detector
-    if key == ord('n'):  # Presiona 'n' para activar el detector de número
-        number_detector = not number_detector
-    if key == ord('y'):  # Presiona 'y' para activar el detector de texto
-        yolo_detector = not yolo_detector
     if key == ord('ñ'):  # Presiona 'ñ' para activar la calibración
         calibracion = not calibracion
     if key == ord('q'):  # Presiona 'q' para salir del bucle
         break
 
-    # Creación de una ventana negra para los mensajes
-    message_frame = np.zeros((160, frame.shape[1], 3), dtype=np.uint8)
-
-    # Mostrar mensajes en la ventana adicional, en función de los modos activos
-    if color_detector:
-        cv2.putText(message_frame, "Detector de color activado", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-    if number_detector:
-        cv2.putText(message_frame, "Detector de numero activado", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-    if yolo_detector:
-        cv2.putText(message_frame, "Detector de figuras activado", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+    # Mostrar mensaje en la ventana adicional, en función de si la calibración está activada
     if calibracion:
-        cv2.putText(message_frame, "Calibracion activada", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-
-    # Mostrar la ventana de mensajes
-    cv2.imshow('Mensajes', message_frame)
+        print(f"Calibración {'activada' if calibracion else 'desactivada'}")     
 
     # Activar la calibración en función de si se pulso o no la tecla correspondiente
     if calibracion:
@@ -152,52 +136,8 @@ while success:
             # Crear una copia del frame para no modificar el original
             color_detection_frame = frame.copy()
 
-            # Si activamos el detector de color
-            if color_detector:
-
-                # Detectar el color de la carta
-                figura, color_label, warped_resized = dc.detectar_color_carta(box, idx, color_detection_frame, active_windows)
-                
-                # Si activamos el detector de número
-                if number_detector:
-
-                    # Detectar el número de la carta
-                    dn.process_card_box(box, frame, thresh, figura)
-
-                    # Si activamos el Yolo
-                    if yolo_detector:
-
-                        # Activar la detección por Yolo
-                        df = FigureDetector()
-
-                        # Si figura es True entonces devolvemos ambos labels, si no solo la figura
-                        if figura:
-                            figure_label, letter_label = df.detectar_figuras(warped_resized, color=color_label, figura=figura)
-                            text = f"Letra: {letter_label} Figura: {figure_label}"
-                        else: 
-                            figure_label = df.detectar_figuras(warped_resized, color=color_label)
-                            text = f"Figura: {figure_label}"
-                    
-                        # Obtener el tamaño del texto
-                        font = cv2.FONT_HERSHEY_SIMPLEX
-                        font_scale = 1
-                        thickness = 2
-                        text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
-
-                        # Calcular la posición en la parte superior derecha
-                        text_x = warped_resized.shape[1] - text_size[0] - 10  # Ancho de la imagen menos el ancho del texto menos un margen
-                        text_y = 30  # Mantiene la altura del texto
-
-                        # Dibujar el texto
-                        cv2.putText(
-                            warped_resized, text,
-                            (text_x, text_y), font, font_scale, 
-                            (255, 255, 255), thickness, cv2.LINE_AA
-                        )
-
-                        # Mostrar la región recortada en una ventana con tamaño ajustado
-                        window_name = f'Carta_Rotada_{idx}'
-                        cv2.imshow(window_name, warped_resized)
+            # Detectar el número de la carta
+            dn.process_card_box(box, frame, thresh, figura=False)
 
         # Se calculan los momentos de la imagen
         M = cv2.moments(c) 
