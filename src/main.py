@@ -114,8 +114,12 @@ while success:
 
     # Cerrar ventanas de contornos que ya no están presentes
     for contour_id in existing_contour_ids - current_contour_ids:
-        cv2.destroyWindow(active_windows[contour_id])
-        del active_windows[contour_id]
+        if contour_id in active_windows:  # Verifica que la ventana exista en el diccionario
+            try:
+                cv2.destroyWindow(active_windows[contour_id])  # Intenta destruir la ventana
+            except cv2.error as e:
+                print(f"Error al cerrar la ventana {active_windows[contour_id]}: {e}")
+            del active_windows[contour_id]
     
     # Dibujar y mostrar la región de interés de cada carta detectada
     for idx, c in enumerate(contours):
@@ -143,6 +147,9 @@ while success:
             # Crear una ventana con el nombre de la carta
             window_name = f'Carta_{idx}'  
             active_windows[idx] = window_name
+
+            # Mostrar la región recortada para crear la ventana
+            cv2.imshow(window_name, box_region)
 
             # Posicionar la ventana en una ubicación diferente
             window_x = 100 + (idx % 5) * 600  # Espaciado horizontal entre ventanas aumentado
