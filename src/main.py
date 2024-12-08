@@ -5,7 +5,7 @@ from utils.real_time import detector_color as dc
 from utils.real_time.detector_figuras import FigureDetector
 
 # Cargar los valores de calibración de la cámara
-with np.load('./static/npz/calibration_data.npz') as data:
+with np.load('../static/npz/calibration_data.npz') as data:
     loaded_mtx = data['camera_matrix']
     loaded_dist = data['dist_coeffs']
 
@@ -15,7 +15,7 @@ cap = cv2.VideoCapture(0)
 # Creación de las ventanas necesarias
 cv2.namedWindow('VentanaCartas')
 cv2.namedWindow('VentanaThresh')
-cv2.namedWindow('VentanaCanny')
+#cv2.namedWindow('VentanaCanny')
 
 # Lectura del primer fotograma de la cámara
 success, frame = cap.read()
@@ -148,13 +148,20 @@ while success:
             window_name = f'Carta_{idx}'  
             active_windows[idx] = window_name
 
+            # Obtener dimensiones reales del rectángulo rotado
+            width = int(np.linalg.norm(box[0] - box[1]))
+            height = int(np.linalg.norm(box[1] - box[2]))
+
+            # Escalar la ventana para que se ajuste mejor al tamaño original
+            escala = 1.5
+            scaled_width = int(width * escala)
+            scaled_height = int(height * escala)
+
             # Mostrar la región recortada para crear la ventana
             cv2.imshow(window_name, box_region)
 
             # Posicionar la ventana en una ubicación diferente
-            window_x = 100 + (idx % 5) * 600  # Espaciado horizontal entre ventanas aumentado
-            window_y = 100 + (idx // 5) * 600  # Espaciado vertical entre filas aumentado
-            cv2.moveWindow(window_name, window_x, window_y)
+            cv2.moveWindow(window_name, 650 + (idx % 5) * (scaled_width + 10), 200 + (idx // 5) * (scaled_height + 10))
 
             # Crear una copia del frame para no modificar el original
             color_detection_frame = frame.copy()

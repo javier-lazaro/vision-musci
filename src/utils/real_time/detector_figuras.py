@@ -4,7 +4,7 @@ import torch
 class FigureDetector:
     def __init__(self):
         # Load YOLOv8 model
-        model_path = "./static/yolov8/weights/best.pt"  # Update path if needed
+        model_path = "../../static/yolov8/weights/best.pt"  # Update path if needed
         self.model = YOLO(model_path)
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
