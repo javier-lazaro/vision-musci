@@ -31,29 +31,32 @@ while success:
 
     # Lógica de la detección de teclas
     key = cv2.waitKey(1) & 0xFF
+    if key == ord('p'):  # Presiona 'ñ' para activar la calibración
+        calibracion = not calibracion
     if key == ord('c'):  # Presiona 'c' para activar el detector de color
         color_detector = not color_detector
     if key == ord('n'):  # Presiona 'n' para activar el detector de número
         number_detector = not number_detector
     if key == ord('y'):  # Presiona 'y' para activar el detector de texto
         yolo_detector = not yolo_detector
-    if key == ord('ñ'):  # Presiona 'ñ' para activar la calibración
-        calibracion = not calibracion
     if key == ord('q'):  # Presiona 'q' para salir del bucle
         break
 
     # Creación de una ventana negra para los mensajes
-    message_frame = np.zeros((160, frame.shape[1], 3), dtype=np.uint8)
+    message_frame = np.zeros((410, frame.shape[1], 3), dtype=np.uint8)
 
-    # Mostrar mensajes en la ventana adicional, en función de los modos activos
-    if color_detector:
-        cv2.putText(message_frame, "Detector de color activado", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-    if number_detector:
-        cv2.putText(message_frame, "Detector de numero activado", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-    if yolo_detector:
-        cv2.putText(message_frame, "Detector de figuras activado", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-    if calibracion:
-        cv2.putText(message_frame, "Calibracion activada", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+    calibration_text = (0, 255, 0) if calibracion else (0, 0, 255)
+    cv2.putText(message_frame, "P: Calibracion", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, calibration_text, 2, cv2.LINE_AA)
+
+    # Mostrar cada opción con color dinámico según su estado
+    color_text = (0, 255, 0) if color_detector else (0, 0, 255)
+    cv2.putText(message_frame, "C: Detector de color", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, color_text, 2, cv2.LINE_AA)
+
+    number_text = (0, 255, 0) if number_detector else (0, 0, 255)
+    cv2.putText(message_frame, "N: Detector de numero", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, number_text, 2, cv2.LINE_AA)
+
+    yolo_text = (0, 255, 0) if yolo_detector else (0, 0, 255)
+    cv2.putText(message_frame, "Y: Detector de figuras", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, yolo_text, 2, cv2.LINE_AA)
 
     # Mostrar la ventana de mensajes
     cv2.imshow('Mensajes', message_frame)
@@ -102,11 +105,11 @@ while success:
         contours = [contour for contour in contours if cv2.contourArea(contour) > media + 2 * desviacion]
 
         # Indicar en la ventana el número de cartas que hay en la mesa
-        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
     
     # Si solo hay un contorno, no es necesario calcular la media y la desviación estándar, es la única carta
     else:
-        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, "Numero de cartas: " + str(len(contours)), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
 
     # Obtener la cantidad de cartas actuales y actualizamos las ventanas
     current_contour_ids = set(range(len(contours)))
@@ -123,6 +126,9 @@ while success:
     
     # Dibujar y mostrar la región de interés de cada carta detectada
     for idx, c in enumerate(contours):
+
+        # Crear una copia del frame para no modificar el original
+        color_detection_frame = frame.copy()
 
         # Encontrar el área mínima
         rect = cv2.minAreaRect(c)
@@ -145,26 +151,23 @@ while success:
         if box_region.size > 0: 
 
             # Crear una ventana con el nombre de la carta
-            window_name = f'Carta_{idx}'  
-            active_windows[idx] = window_name
+            #window_name = f'Carta_{idx}'  
+            #active_windows[idx] = window_name
 
             # Obtener dimensiones reales del rectángulo rotado
-            width = int(np.linalg.norm(box[0] - box[1]))
-            height = int(np.linalg.norm(box[1] - box[2]))
+            #width = int(np.linalg.norm(box[0] - box[1]))
+            #height = int(np.linalg.norm(box[1] - box[2]))
 
             # Escalar la ventana para que se ajuste mejor al tamaño original
-            escala = 1.5
-            scaled_width = int(width * escala)
-            scaled_height = int(height * escala)
+            #escala = 1.5
+            #scaled_width = int(width * escala)
+            #scaled_height = int(height * escala)
 
             # Mostrar la región recortada para crear la ventana
-            cv2.imshow(window_name, box_region)
+            #cv2.imshow(window_name, box_region)
 
             # Posicionar la ventana en una ubicación diferente
-            cv2.moveWindow(window_name, 650 + (idx % 5) * (scaled_width + 10), 200 + (idx // 5) * (scaled_height + 10))
-
-            # Crear una copia del frame para no modificar el original
-            color_detection_frame = frame.copy()
+            #cv2.moveWindow(window_name, 650 + (idx % 5) * (scaled_width + 10), 200 + (idx // 5) * (scaled_height + 10))
 
             # Si activamos el detector de color
             if color_detector:
@@ -194,19 +197,20 @@ while success:
                     
                         # Obtener el tamaño del texto
                         font = cv2.FONT_HERSHEY_SIMPLEX
-                        font_scale = 1
+                        font_scale = 0.9
                         thickness = 2
                         text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
 
                         # Calcular la posición en la parte superior derecha
-                        text_x = warped_resized.shape[1] - text_size[0] - 10  # Ancho de la imagen menos el ancho del texto menos un margen
-                        text_y = 30  # Mantiene la altura del texto
+                        #text_x = warped_resized.shape[1] - text_size[0] - 10  # Ancho de la imagen menos el ancho del texto menos un margen
+                        text_x = 10
+                        text_y = 70  # Mantiene la altura del texto
 
                         # Dibujar el texto
                         cv2.putText(
                             warped_resized, text,
                             (text_x, text_y), font, font_scale, 
-                            (255, 255, 255), thickness, cv2.LINE_AA
+                            (191, 4, 255), thickness, cv2.LINE_AA
                         )
 
                         # Mostrar la región recortada en una ventana con tamaño ajustado
@@ -225,7 +229,7 @@ while success:
         cv2.circle(frame, (x,y), 15, (0,255,0), -1)
         
         # Dibujar las coordenadas del objeto
-        cv2.putText(frame, '{}, {}'.format(x,y), (x+10, y), cv2.FONT_HERSHEY_SIMPLEX, 1.10, (255,0,0), 2, cv2.LINE_AA)
+        cv2.putText(frame, '{}, {}'.format(x,y), (x+10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (235,0,27), 2, cv2.LINE_AA)
 
     # Mostrar las ventanas 
     cv2.imshow('VentanaCartas', frame)

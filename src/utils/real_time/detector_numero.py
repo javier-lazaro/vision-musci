@@ -32,7 +32,7 @@ def process_card_box(box, frame, thresh, figura):
         canny_edges = cv2.Canny(box_gray, low_threshold, high_threshold)
 
         # Mostrar la ventana de los bordes detectados por Canny
-        cv2.imshow('VentanaCanny', canny_edges)
+        #cv2.imshow('VentanaCanny', canny_edges)
 
         # Aplicar una operación de cerrado morfológico para asegurar que los bordes estén bien cerrados
         kernel = np.ones((5, 5), np.uint8)
@@ -97,11 +97,11 @@ def process_card_box(box, frame, thresh, figura):
             text = f'Numero: {count}'
         
         # Configuración de texto para mostrar el resultado
-        font_scale = 1
+        font_scale = 0.7
         font_thickness = 2
         text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0]
         text_width, text_height = text_size
         text_x = x + top_left[0] + (rect_width // 2) - (text_width // 2)
         text_y = y + top_left[1] - 10
         # Dibujar el texto en el marco principal
-        cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 0, 0), font_thickness, cv2.LINE_AA)
+        cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (33, 255, 235), font_thickness, cv2.LINE_AA)
