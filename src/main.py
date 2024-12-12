@@ -13,8 +13,8 @@ with np.load('../static/npz/calibration_data.npz') as data:
 cap = cv2.VideoCapture(0)
 
 # Creación de las ventanas necesarias
-cv2.namedWindow('VentanaCartas')
-cv2.namedWindow('VentanaThresh')
+#cv2.namedWindow('VentanaCartas')
+#cv2.namedWindow('VentanaThresh')
 #cv2.namedWindow('VentanaCanny')
 
 # Lectura del primer fotograma de la cámara
@@ -43,7 +43,7 @@ while success:
         break
 
     # Creación de una ventana negra para los mensajes
-    message_frame = np.zeros((410, frame.shape[1], 3), dtype=np.uint8)
+    message_frame = np.zeros((frame.shape[0], int(frame.shape[1] * 1.5), 3), dtype=np.uint8)
 
     calibration_text = (0, 255, 0) if calibracion else (0, 0, 255)
     cv2.putText(message_frame, "P: Calibracion", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, calibration_text, 2, cv2.LINE_AA)
@@ -59,7 +59,7 @@ while success:
     cv2.putText(message_frame, "Y: Detector de figuras", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, yolo_text, 2, cv2.LINE_AA)
 
     # Mostrar la ventana de mensajes
-    cv2.imshow('Mensajes', message_frame)
+    #cv2.imshow('Mensajes', message_frame)
 
     # Activar la calibración en función de si se pulso o no la tecla correspondiente
     if calibracion:
@@ -197,7 +197,7 @@ while success:
                     
                         # Obtener el tamaño del texto
                         font = cv2.FONT_HERSHEY_SIMPLEX
-                        font_scale = 0.9
+                        font_scale = 0.7
                         thickness = 2
                         text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
 
@@ -231,9 +231,40 @@ while success:
         # Dibujar las coordenadas del objeto
         cv2.putText(frame, '{}, {}'.format(x,y), (x+10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (235,0,27), 2, cv2.LINE_AA)
 
+    # Escalar las ventanas
+    scale_percent = 100  # Escala en porcentaje
+    frame_width = int(frame.shape[1] * scale_percent / 100)
+    frame_height = int(frame.shape[0] * scale_percent / 100)
+    dim = (frame_width, frame_height)
+
+    # Redimensionar los frames
+    rescaled_frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+    rescaled_thresh = cv2.resize(thresh, dim, interpolation=cv2.INTER_AREA)
+
+
+    # Crear un canvas para acomodar todos los frames
+    canvas_height = rescaled_frame.shape[0] + rescaled_thresh.shape[0]  # Altura máxima considerando message_frame
+    canvas_width = rescaled_frame.shape[1] + message_frame.shape[1]  # Ancho total
+    canvas = np.ones((canvas_height, canvas_width, 3), dtype=np.uint8) * 255  # Canvas blanco
+
+    # Colocar rescaled_frame en la parte izquierda
+    canvas[:rescaled_frame.shape[0], :rescaled_frame.shape[1]] = rescaled_frame
+
+    # Convertir rescaled_thresh a BGR y colocarlo en la parte inferior izquierda
+    rescaled_thresh_bgr = cv2.cvtColor(rescaled_thresh, cv2.COLOR_GRAY2BGR)
+    thresh_y = canvas_height - rescaled_thresh_bgr.shape[0]
+    canvas[thresh_y:, :rescaled_thresh_bgr.shape[1]] = rescaled_thresh_bgr
+
+    # Colocar message_frame en la parte superior derecha
+    message_x = canvas_width - message_frame.shape[1]
+    canvas[:message_frame.shape[0], message_x:] = message_frame
+
+    # Mostrar el canvas en una sola ventana
+    cv2.imshow('Ventana Principal', canvas)
+
     # Mostrar las ventanas 
-    cv2.imshow('VentanaCartas', frame)
-    cv2.imshow('VentanaThresh', thresh) 
+    #cv2.imshow('VentanaCartas', rescaled_frame)
+    #cv2.imshow('VentanaThresh', rescaled_thresh) 
 
     # Lectura el siguiente fotograma de la cámara
     success, frame = cap.read() 

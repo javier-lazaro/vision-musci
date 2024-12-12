@@ -54,7 +54,7 @@ def detectar_color_carta(box, idx, color_detection_frame, active_windows):
         warped = cv2.rotate(warped, cv2.ROTATE_90_CLOCKWISE)
 
     # Escalar la ventana para que se ajuste mejor al tamaño original
-    escala = 1.5
+    escala = 1.3
     scaled_width = int(width * escala)
     scaled_height = int(height * escala)
     warped_resized = cv2.resize(warped, (scaled_width, scaled_height), interpolation=cv2.INTER_LINEAR)
@@ -105,9 +105,9 @@ def detectar_color_carta(box, idx, color_detection_frame, active_windows):
 
     # Añadir la etiqueta de porcentajes y el color sobre la carta detectada
     cv2.putText(warped_resized, f"Color: {color_label}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (191, 4, 255), 2, cv2.LINE_AA)
-    cv2.putText(warped_resized, f"Roja: {red_percentage:.2f}%", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1, cv2.LINE_AA)
-    cv2.putText(warped_resized, f"Amarilla: {yellow_percentage:.2f}%", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 1, cv2.LINE_AA)
-    cv2.putText(warped_resized, f"Negra: {black_percentage:.2f}%", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 1, cv2.LINE_AA)
+    cv2.putText(warped_resized, f"Roja: {red_percentage:.2f}%", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+    cv2.putText(warped_resized, f"Amarilla: {yellow_percentage:.2f}%", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+    cv2.putText(warped_resized, f"Negra: {black_percentage:.2f}%", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
 
     # Mostrar la región recortada en una ventana con tamaño ajustado
     window_name = f'Carta_Rotada_{idx}'
@@ -117,6 +117,6 @@ def detectar_color_carta(box, idx, color_detection_frame, active_windows):
     active_windows[idx] = window_name
 
     # Mover las ventanas de las cartas a la parte inferior derecha
-    cv2.moveWindow(window_name, 650 + (idx % 5) * (scaled_width + 10), 430 + (idx // 5) * (scaled_height + 10))
+    cv2.moveWindow(window_name, 680 + (idx % 5) * (scaled_width + 10), 550 + (idx // 4) * (scaled_height + 10))
 
     return figura, color_label, warped_resized
