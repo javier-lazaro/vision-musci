@@ -53,9 +53,9 @@ Esta sección engloba dos pasos importantes. Por un lado, el postprocesado de la
 3. Rotación de los píxeles dentro del box mediante una transformación de perspectiva.
 
 <p align="center">
-    <img src="https://github.com/user-attachments/assets/7c876051-e7c3-4ff4-9e66-9ebaf6eed9c9" alt="Transformation" width="400"/>
+    <img src="https://github.com/user-attachments/assets/7c876051-e7c3-4ff4-9e66-9ebaf6eed9c9" alt="Transformation" width="300"/>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    
-    <img src="https://github.com/user-attachments/assets/c62210ca-842e-469c-9060-63e421966c8e" alt="Transformation v2" width="400"/>
+    <img src="https://github.com/user-attachments/assets/c62210ca-842e-469c-9060-63e421966c8e" alt="Transformation v2" width="300"/>
 </p>
 
 El resultado es una versión "enderezada" de cada una de las cartas detectadas en la sección inicial. A cada una de estas cartas coreguidas se les han aplicado las siguientes operaciones para extraer su color:
