@@ -3,6 +3,8 @@
 <p align="justify">
 El objetivo de este proyecto para la asignatura de Visión por Computador del MUSCI 24-25 es la creación de un sistema de detección de cartas de la baraja de naipes en tiempo real mediante el uso de métodos de visión artificial. La aplicación desarrollada utiliza la librería CV2 con la que se aplican diversas técnicas de procesamiento de imagen que extraen información característica de las cartas presentes en los fotogramas capturados mediante una cámara. La captura, procesamiento y muestra de resultados ocurre en tiempo real y busca tener la mayor robustez posible de cara a la extracción de las caracterísicas de las cartas. 
 
+![pngegg](https://github.com/user-attachments/assets/d21d665c-ce31-4c22-b2cf-6b8f05720705)
+
 ## Carcaterísticas principales ##
 
 La aplicación desarrollada para este proyecto permite extraer diversas características de las cartas de la baraja de naipes en tiempo real: 
@@ -43,18 +45,20 @@ Esta sección engloba dos pasos importantes. Por un lado, el postprocesado de la
 3. Rotación de los píxeles dentro del box mediante una transformación de perspectiva.
 
 <p align="center">
-    <img src="https://github.com/user-attachments/assets/7c876051-e7c3-4ff4-9e66-9ebaf6eed9c9" alt="Transformation" width="500"/>
+    <img src="https://github.com/user-attachments/assets/7c876051-e7c3-4ff4-9e66-9ebaf6eed9c9" alt="Transformation" width="400"/>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    
+    <img src="https://github.com/user-attachments/assets/c62210ca-842e-469c-9060-63e421966c8e" alt="Transformation v2" width="400"/>
 </p>
 
 El resultado es una versión "enderezada" de cada una de las cartas detectadas en la sección inicial. A cada una de estas cartas coreguidas se les han aplicado las siguientes operaciones para extraer su color:
 
-1. 
+1. Transformación del rectángulo de píxeles a HSV
+2. Creación de umbrales para extracción de colores: Rojo, Negro y Amarillo
+3. Aplicación de máscaras usando estos umbrales para obtener un porcentaje de coincidencia frente a cada carta
 
+El uso del umbral paa el color amarillo, permite que este módulo también sea capaz de determinar si una carta es una carta común (carta entre el 1 y 10) o una figura (J, Q, K), ya que estas últimas son las únicas que tienen un porcentaje significativo de color amarillo. 
 
-
-
-
+### Extracción de números de las cartas ###
 
 ## Siguientes pasos ##
 
