@@ -1,9 +1,7 @@
 # Detector de cartas en tiempo real #
 
 <p align="justify">
-El objetivo de este proyecto para la asignatura de Visión por Computador del MUSCI 24-25 es la creación de un sistema de detección de cartas de la baraja de naipes en tiempo real mediante el uso de métodos de visión artificial. La aplicación desarrollada utiliza la librería CV2 con la que se aplican diversas técnicas de procesamiento de imagen que extraen información característica de las cartas presentes en los fotogramas capturados mediante una cámara. La captura, procesamiento y muestra de resultados ocurre en tiempo real y busca tener la mayor robustez posible de cara a la extracción de las caracterísicas de las cartas. Esta robustez es un requisito importante del proyecto, ya que esta aplicación será reutilizada como módulo de entrada para el proyecto de la asigantura de Robótica y Automatización del MUSCI 24-25: https://github.com/motri/mucsi_robotica 
-
-![pngegg](https://github.com/user-attachments/assets/d21d665c-ce31-4c22-b2cf-6b8f05720705)
+El objetivo de este proyecto para la asignatura de Visión por Computador del MUSCI 24-25 es la creación de un sistema de detección de cartas de la baraja de naipes en tiempo real mediante el uso de métodos de visión artificial. La aplicación desarrollada utiliza la librería CV2 con la que se aplican diversas técnicas de procesamiento de imagen que extraen información característica de las cartas presentes en los fotogramas capturados mediante una cámara. La captura, procesamiento y muestra de resultados ocurre en tiempo real y busca tener la mayor robustez posible de cara a la extracción de las caracterísicas de las cartas. 
 
 ## Carcaterísticas principales ##
 
@@ -35,6 +33,28 @@ En esta sección se detallan los distintos métodos aplicados para obtener cada 
 1. Obtención del centroide de cada uno de los contornos localizados en la fase anterior mediante moments()
 2. Cálculo de las coordenadas X e Y de los centroides
 3. Dibujado por pantalla mostrando el punto central y los valores de las coordenadas X e Y
+
+### Extracción de colores de las cartas ###
+
+Esta sección engloba dos pasos importantes. Por un lado, el postprocesado de las cartas detectadas en los pasos anteriores mediante una rotación de perspectiva y, por otro lado, a extracción del color más representativo para cada una de las cartas postprocesadas. Se han seguido los siguientes pasos para cada una de estas partes: 
+
+1. Obtención y ordenación según ubicación de las 4 esquinas de cada rectángulo de carta detectado
+2. Cálculo de largura de los lados del rectángulo para tener información sobre la orientación de la carta frente a la cámara
+3. Rotación de los píxeles dentro del box mediante una transformación de perspectiva.
+
+<p align="center">
+    <img src="https://github.com/user-attachments/assets/7c876051-e7c3-4ff4-9e66-9ebaf6eed9c9" alt="Transformation" width="500"/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    
+</p>
+
+El resultado es una versión "enderezada" de cada una de las cartas detectadas en la sección inicial. A cada una de estas cartas coreguidas se les han aplicado las siguientes operaciones para extraer su color:
+
+1. 
+
+
+
+
+
 
 ## Siguientes pasos ##
 
