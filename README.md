@@ -21,6 +21,12 @@ La aplicación desarrollada para este proyecto permite extraer diversas caracter
 
 En esta sección se detallan los distintos métodos aplicados para obtener cada una de las características previamente mencionadas.
 
+### Calibración de la cámara ###
+
+Se ha realizado una calibración de la cámara utilizada para las pruebas utilizando la [implementación de OpenCV](https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html) (cv2.calibrateCamera). La calibración es particular para cada cámara, por lo que su uso puede no ser conveniente en todos los casos. 
+
+El código implementado para la calibración se encunetra en [src/utils/static/calibracion_camara.py](https://github.com/javier-lazaro/vision-musci/blob/main/src/utils/static/calibracion_camara.py) y el resultado de misma está guardado en [static/npz/calibration_data.npz](https://github.com/javier-lazaro/vision-musci/blob/main/static/npz/calibration_data.npz).
+
 ### Detección de número de cartas que existen sobre el tablero ###
 
 1. Uso de Threshold para resaltar elementos claros (cartas) frente a un fondo oscuro (tablero)
@@ -36,7 +42,7 @@ En esta sección se detallan los distintos métodos aplicados para obtener cada 
 2. Cálculo de las coordenadas X e Y de los centroides
 3. Dibujado por pantalla mostrando el punto central y los valores de las coordenadas X e Y
 
-La lógica descrita en estas dos secciones anteriores se encuentra localizada en el bucle principal dentro de src/main.py
+La lógica descrita en estas dos secciones anteriores se encuentra localizada en el bucle principal dentro de [src/main.py](https://github.com/javier-lazaro/vision-musci/blob/main/src/main.py)
 
 ### Extracción de colores de las cartas ###
 
@@ -60,7 +66,7 @@ El resultado es una versión "enderezada" de cada una de las cartas detectadas e
 
 El uso del umbral paa el color amarillo, permite que este módulo también sea capaz de determinar si una carta es una carta común (carta entre el 1 y 10) o una figura (J, Q, K), ya que estas últimas son las únicas que tienen un porcentaje significativo de color amarillo. 
 
-La lógica descrita para la transformación de las cartas y la extracción del color se encuentra en src/utils/detector_color.py
+La lógica descrita para la transformación de las cartas y la extracción del color se encuentra en [src/utils/real_time/detector_color.py](https://github.com/javier-lazaro/vision-musci/blob/main/src/utils/real_time/detector_color.py)
 
 ### Extracción de números de las cartas ###
 
@@ -70,14 +76,14 @@ La extracción de números de carta se realiza de forma distinta si la carta se 
 2. Aplicación de un filtro Canny en base al threshold, junto con cerrado automático de contornos abiertos, sobre la región central de interés de cada carta
 3. Recuento de contornos obtenidos con lógica adicional para detectar conotornos inusualmente pequeños y obviarlos para el conteo
 
-La implementación de la lógica anterior se encuentra en src/utils/detector_numero.py
+La implementación de la lógica anterior se encuentra en [src/utils/real_time/detector_numero.py](https://github.com/javier-lazaro/vision-musci/blob/main/src/utils/real_time/detector_numero.py)
 
 La extracción del número de carta para las figuras se hace de la siguiente manera:
 
 1. Extracción de información sobre si la carta es común o figura mediante el módulo de detección de color
 2. Aplicación de un modelo YOLO entrenado para detectar las clases J, Q y K sólo sobre las cartas que son figuras
 
-La implementación de la lógica anterior se encuentra en src/utils/detector_figuras.py
+La implementación de la lógica anterior se encuentra en [src/utils/real_time/detector_figuras.py](https://github.com/javier-lazaro/vision-musci/blob/main/src/utils/real_time/detector_figuras.py)
 
 ### Extracción de palos de las cartas ###
 
@@ -99,28 +105,26 @@ Utilizando el modelo YOLO entrenado, el proceso de exracción del palo se realiz
    - Si la predición es imposible dado el color, se aplica una correción manual en base al vecino más próximo. Se devuelve el palo corregido.
    - Si el palo es detectado como Joker, no se realiza ningún postprocesado
 
-La lógica descrita se encuentra implementada en src/utils/detector_figura.py
+La lógica descrita se encuentra implementada en [src/utils/real_time/detector_figura.py](https://github.com/javier-lazaro/vision-musci/blob/main/src/utils/real_time/detector_figuras.py)
 
-## Siguientes pasos ##
+## Uso de la aplicación ##
 
-1. Extracción de regiones de interés (ROI) para cada una de las cartas comprendidas dentro de los contornos:
-    - Obtención de las zonas superior izquierda e inferior derecha (ROI 1) --> Información sobre el color, palo y número
-    - Obtención de la zona intermedia (ROI 2) --> Especialmente útil para J, Q, K y Joker
+La aplicación final en OpenCV permite utilizar todas las funciones descritas anteriormente mediante una serie de controles por teclado. Inicialmente, la aplicación muestra una ventana principal con las imágenes capturadas en tiempo real desde la cámara, así como una ventana secundaria donde se muestra el resultado del threshold a modo de referencia. Por defecto, cada vez que una carta aparece en un frame, se detecta su presencia. Esto se simboliza mediante un rectágulo rojo que engloba a la carta, así como un punto verde dibujado sobre su centroide con sus coordenadas. Un texto en la parte superior izquierda de la pantalla muestra el número total de cartas detectadas en cada momento.   
 
-<p align="center">
-    <img src="https://github.com/user-attachments/assets/fc2b9640-ade1-4de7-9a15-069e18d44a03" alt="7 of Hearts" width="300"/>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    
-    <img src="https://github.com/user-attachments/assets/685f6449-7e1a-41ea-866d-539eadf14bfb" alt="Queen of Spades" width="300"/>
-</p>
+Un menú en la zona superior derecha muestra los controles para activar o desactivar las funciones adicionales de la aplicación:
 
-2. Cálculo del color de la carta mediante la obtención del color predominante (que no sea blanco) de la ROI 1
-3. Obtención del palo mediante la distinción de los contornos de la ROI 1 (Posiblemente mediante filtro Canny y cálculo de áreas u otros métodos)
-4. Obtención del número de la carta mediante una doble validación de carcaterísticas de la ROI 1 y 2 --> Detectar el número en la ROI 1 y contar contornos en la ROI 2
-5. Muestra del color, palo y número en centroide de cada carta (en lugar del círculo y coordenada)
+- Tecla "p" : Activa o desactiva la calibración de la cámara
+- Tecla "c" : Activa o desactiva la detección de color para las cartas
+- Tecla "n" : Activa o desactiva la detección de los números de las cartas normales (cartas del 1 al 10)
+- Tecla "y" : Activa o desactiva el uso de YOLO para la detección del palo y las figuras 
 
-## Posibles mejoras ##
 
-1. Gestión del reconocimiento cuando existen varias cartas posicionadas parcialmente una encima de la otra
-2. Entrenamiento de una clasificador Haar para detectar las cartas que carecen de características representativas --> JOKER
+<img width="1146" alt="image" src="https://github.com/user-attachments/assets/13963a90-c819-4c44-9fd8-42602b09f7fd" />
+
+## Problemas conocidos ##
+
+1. La detección de los números para las cartas normales es muy dependiente de la calidad del threshold aplicado. Requiere de una iluminación estable y de buena calibración del dispositivo de captura.
+2. El modelo YOLO tiene una peor precisión para la detección de figuras (J, Q, K) que para los palos (Rombo, Pica, Corazón, Trébol).
+3. La naturaleza de la captura en tiempo real hace que las detecciones de las características tengan imperfecciones puntuales durante la captura. 
 
 </p>
