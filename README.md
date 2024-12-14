@@ -83,15 +83,23 @@ La implementación de la lógica anterior se encuentra en src/utils/detector_fig
 
 Al igual que para la detección de figuras (J, Q y K), para la detección de los distintos palos de cada carta se ha utilizado un modelo YOLO entrenado manualmente. El entrenamiento ha sido realizado utilizando un dataset de 342 imágenes de nuestra baraja de cartas. El dataset está compuesto de imágenes de cartas individuales con distintos fondos, rotaciones e iluminaciones. La anotación del conjutnto de datos se ha realizado de forma manual utilizando [Roboflow](https://roboflow.com/). Se ha aplicado también un data augmentation para generar imágenes con _blur_, incrementando el número de elementos del dataset a 800, las imágenes de salida tienen un tamaño de 640x640 píxeles. 
 
-El modelo ha sido entrenado usando YOLO Nano como punto de partida durante 100 epochs. Las métricas obtenidas frente al conjunto de datos de validación se recogen en la siguiente tabla:
+El modelo ha sido entrenado usando YOLO Nano como punto de partida durante 100 epochs. El modelo es capaz de detectar las siguientes clases: **Rombo, Pica, Trébol, Corazón, J, Q K y Joker**. Las métricas obtenidas frente al conjunto de datos de validación se recogen en la siguiente tabla:
 
 | Precision (B) | Recall (B)   | mAP50 (B) | mAP50-95 (B) |
 | ------------- |:------------:| ---------:| ------------:|
 | 0.93918       | 0.94923      | 0.95645   | 0.74899      |
 
+Utilizando el modelo YOLO entrenado, el proceso de exracción del palo se realiza de la siguiente manera:
 
+1. Carga del modelo YOLO utilizando los pesos tras el entrenamiento
+2. Obtención de las clases pedecidas para los píxeles transformados tras la extracción del color
+3. Cribado inicial de los resultados para obtener la clase con mayor número de coincidencias
+4. Operación de post procesado adicional para comparar la clase detectada (palo) con el color extraído de la carta.
+   - Si el resultado es favorable se devuelve el palo detectado
+   - Si la predición es imposible dado el color, se aplica una correción manual en base al vecino más próximo. Se devuelve el palo corregido.
+   - Si el palo es detectado como Joker, no se realiza ningún postprocesado
 
-
+La lógica descrita se encuentra implementada en src/utils/detector_figura.py
 
 ## Siguientes pasos ##
 
