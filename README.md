@@ -36,6 +36,8 @@ En esta sección se detallan los distintos métodos aplicados para obtener cada 
 2. Cálculo de las coordenadas X e Y de los centroides
 3. Dibujado por pantalla mostrando el punto central y los valores de las coordenadas X e Y
 
+La lógica descrita en estas dos secciones anteriores se encuentra localizada en el bucle principal dentro de src/main.py
+
 ### Extracción de colores de las cartas ###
 
 Esta sección engloba dos pasos importantes. Por un lado, el postprocesado de las cartas detectadas en los pasos anteriores mediante una rotación de perspectiva y, por otro lado, a extracción del color más representativo para cada una de las cartas postprocesadas. Se han seguido los siguientes pasos para cada una de estas partes: 
@@ -58,7 +60,38 @@ El resultado es una versión "enderezada" de cada una de las cartas detectadas e
 
 El uso del umbral paa el color amarillo, permite que este módulo también sea capaz de determinar si una carta es una carta común (carta entre el 1 y 10) o una figura (J, Q, K), ya que estas últimas son las únicas que tienen un porcentaje significativo de color amarillo. 
 
+La lógica descrita para la transformación de las cartas y la extracción del color se encuentra en src/utils/detector_color.py
+
 ### Extracción de números de las cartas ###
+
+La extracción de números de carta se realiza de forma distinta si la carta se trata de una carta común o una figura. Para las cartas comunes: 
+
+1. Creación de un rectángulo para analizar región central de interés usándo el centroide de cada carta detectada como punto central
+2. Aplicación de un filtro Canny en base al threshold, junto con cerrado automático de contornos abiertos, sobre la región central de interés de cada carta
+3. Recuento de contornos obtenidos con lógica adicional para detectar conotornos inusualmente pequeños y obviarlos para el conteo
+
+La implementación de la lógica anterior se encuentra en src/utils/detector_numero.py
+
+La extracción del número de carta para las figuras se hace de la siguiente manera:
+
+1. Extracción de información sobre si la carta es común o figura mediante el módulo de detección de color
+2. Aplicación de un modelo YOLO entrenado para detectar las clases J, Q y K sólo sobre las cartas que son figuras
+
+La implementación de la lógica anterior se encuentra en src/utils/detector_figuras.py
+
+### Extracción de palos de las cartas ###
+
+Al igual que para la detección de figuras (J, Q y K), para la detección de los distintos palos de cada carta se ha utilizado un modelo YOLO entrenado manualmente. El entrenamiento ha sido realizado utilizando un dataset de 342 imágenes de nuestra baraja de cartas. El dataset está compuesto de imágenes de cartas individuales con distintos fondos, rotaciones e iluminaciones. La anotación del conjutnto de datos se ha realizado de forma manual utilizando [Roboflow](https://roboflow.com/). Se ha aplicado también un data augmentation para generar imágenes con _blur_, incrementando el número de elementos del dataset a 800, las imágenes de salida tienen un tamaño de 640x640 píxeles. 
+
+El modelo ha sido entrenado usando YOLO Nano como punto de partida durante 100 epochs. Las métricas obtenidas frente al conjunto de datos de validación se recogen en la siguiente tabla:
+
+| Precision (B) | Recall (B)   | mAP50 (B) | mAP50-95 (B) |
+| ------------- |:------------:| ---------:| ------------:|
+| 0.93918       | 0.94923      | 0.95645   | 0.74899      |
+
+
+
+
 
 ## Siguientes pasos ##
 
