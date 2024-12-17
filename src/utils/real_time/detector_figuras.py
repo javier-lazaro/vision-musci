@@ -3,8 +3,8 @@ import torch
 
 class FigureDetector:
     def __init__(self):
-        # Load YOLOv8 model
-        model_path = "../../static/yolov8/weights/best.pt"  # Update path if needed
+        # Cargamos el modelo YOLOv8
+        model_path = "../../static/yolov8/weights/best.pt" 
         self.model = YOLO(model_path)
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -43,7 +43,7 @@ class FigureDetector:
 
         # Definimos qué figuras son correctas para cada color
         color_mapping = {
-            "Roja": ["corazon", "rombo"],  # Coazones y Diamantes siempre ROJOS
+            "Roja": ["corazon", "rombo"],  # Corazones y Diamantes siempre ROJOS
             "Negra": ["pica", "trebol"]   # Picas y Treboles siempre NEGROS
         }
 
@@ -61,8 +61,8 @@ class FigureDetector:
                 # Corregimos el label si es incorrecto y lo imprimimos
                 label_corrected = corrections.get(label)
                 print(f"Detectado un: {label} || Error dado el color: {color}, corregido a {label_corrected}")
-            #else:
-                # If valid, explicitly confirm correctness
-                #print(f"Detectado un: {label} || Validado como correcto para el color: {color}")
+            else:
+                # Si es valido, se explicita por pantalla
+                print(f"Detectado un: {label} || Validado como correcto para el color: {color}")
 
         return label_corrected
