@@ -12,11 +12,6 @@ with np.load('../static/npz/calibration_data.npz') as data:
 # Lectura de imagen en tiempo real
 cap = cv2.VideoCapture(0)
 
-# Creación de las ventanas necesarias
-#cv2.namedWindow('VentanaCartas')
-#cv2.namedWindow('VentanaThresh')
-#cv2.namedWindow('VentanaCanny')
-
 # Lectura del primer fotograma de la cámara
 success, frame = cap.read()
 
@@ -57,9 +52,6 @@ while success:
 
     yolo_text = (0, 255, 0) if yolo_detector else (0, 0, 255)
     cv2.putText(message_frame, "Y: Detector de figuras", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, yolo_text, 2, cv2.LINE_AA)
-
-    # Mostrar la ventana de mensajes
-    #cv2.imshow('Mensajes', message_frame)
 
     # Activar la calibración en función de si se pulso o no la tecla correspondiente
     if calibracion:
@@ -150,25 +142,6 @@ while success:
         # Si la región del box es válida
         if box_region.size > 0: 
 
-            # Crear una ventana con el nombre de la carta
-            #window_name = f'Carta_{idx}'  
-            #active_windows[idx] = window_name
-
-            # Obtener dimensiones reales del rectángulo rotado
-            #width = int(np.linalg.norm(box[0] - box[1]))
-            #height = int(np.linalg.norm(box[1] - box[2]))
-
-            # Escalar la ventana para que se ajuste mejor al tamaño original
-            #escala = 1.5
-            #scaled_width = int(width * escala)
-            #scaled_height = int(height * escala)
-
-            # Mostrar la región recortada para crear la ventana
-            #cv2.imshow(window_name, box_region)
-
-            # Posicionar la ventana en una ubicación diferente
-            #cv2.moveWindow(window_name, 650 + (idx % 5) * (scaled_width + 10), 200 + (idx // 5) * (scaled_height + 10))
-
             # Si activamos el detector de color
             if color_detector:
 
@@ -202,7 +175,6 @@ while success:
                         text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
 
                         # Calcular la posición en la parte superior derecha
-                        #text_x = warped_resized.shape[1] - text_size[0] - 10  # Ancho de la imagen menos el ancho del texto menos un margen
                         text_x = 10
                         text_y = 70  # Mantiene la altura del texto
 
@@ -261,10 +233,6 @@ while success:
 
     # Mostrar el canvas en una sola ventana
     cv2.imshow('Ventana Principal', canvas)
-
-    # Mostrar las ventanas 
-    #cv2.imshow('VentanaCartas', rescaled_frame)
-    #cv2.imshow('VentanaThresh', rescaled_thresh) 
 
     # Lectura el siguiente fotograma de la cámara
     success, frame = cap.read() 
